@@ -9,21 +9,27 @@
     "test": "vitest run",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "db:gen": "pnpm --filter @cooljoe/api exec prisma generate",
+    "db:mig": "pnpm --filter @cooljoe/api exec prisma migrate dev",
     "prepare": "husky"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@9.12.0+sha512.4abf725084d7bcbafbd728bfc7bee61f2f791f977fd87542b3579dcb23504d170d46337945e4c66485cd12d588a0c0e570ed9c477e7ccdd8507cf05f3f92eaca",
+  "packageManager": "pnpm@10.17.1",
   "devDependencies": {
     "@commitlint/cli": "^20.4.3",
     "@commitlint/config-conventional": "^20.4.3",
+    "@eslint/js": "^9.39.3",
+    "@prisma/client": "^5.22.0",
     "@vitest/coverage-v8": "^4.0.18",
     "cspell": "^9.7.0",
     "eslint": "^10.0.2",
     "globals": "^17.4.0",
     "husky": "^9.1.7",
     "prettier": "^3.8.1",
+    "prisma": "^5.22.0",
+    "turbo": "^2.8.13",
     "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   }

@@ -1,5 +1,10 @@
-import { defineWorkspace } from 'vitest/config';
+import { defaultExclude, defineWorkspace } from 'vitest/config';
 
 export default defineWorkspace([
-    'apps/*'
+    {
+        test: {
+            include: ['apps/*/src/**/*.spec.ts'],
+            exclude: [...defaultExclude, '**/dist/**']
+        }
+    }
 ]);

@@ -1,14 +1,28 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
+import copilotRouter from './copilot';
+import cors from 'cors';
+import dotenv from 'dotenv';
+dotenv.config();
 
-const app = express();
+export const app = express();
 const port = process.env.PORT || 3001;
+const allowOrigins = process.env.CLIENT_URL?.split(',') || ""
 
+console.log({ allowOrigins });
+
+app.use(cors({ origin: allowOrigins }));
 app.use(express.json());
 
-app.get('/api/health', (req, res) => {
+// Main Copilot integration
+app.use('/api/copilot', copilotRouter);
+
+app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
 });
 
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-});
+// Start server only if not in test mode
+if (process.env.NODE_ENV !== 'test') {
+    app.listen(port, () => {
+        console.log(`API Server listening on port ${port}`);
+    });
+}

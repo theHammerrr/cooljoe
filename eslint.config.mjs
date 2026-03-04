@@ -6,7 +6,18 @@ export const baseConfig = tseslint.config(
   ...tseslint.configs.recommended,
   {
     rules: {
-      'max-lines': ['error', { max: 100, skipBlankLines: true, skipComments: true }]
+      'max-lines': ['error', { max: 100, skipBlankLines: true, skipComments: true }],
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'TSAsExpression',
+          message: 'Do not use `as` type assertions. Use runtime validation and type narrowing instead.'
+        },
+        {
+          selector: 'TSTypeAssertion',
+          message: 'Do not use angle-bracket type assertions. Use runtime validation and type narrowing instead.'
+        }
+      ]
     }
   },
   {

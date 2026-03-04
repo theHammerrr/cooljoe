@@ -1,0 +1,70 @@
+// apps/api/prisma/schema.prisma
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model SemanticDoc {
+  id          String   @id @default(uuid())
+  term        String   @unique
+  definition  String
+  type        String   @default("glossary") // glossary, table_description, column_description
+  metadata    Json?    // For related tables, synonyms, etc.
+  embedding   Unsupported("vector(1536)")? // Requires pgvector
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model QueryRecipe {
+  id          String   @id @default(uuid())
+  intent      String
+  sqlQuery    String
+  prismaQuery String?
+  tags        String[]
+  metadata    Json?    // Captured schema context, used tables, etc.
+  embedding   Unsupported("vector(1536)")? // Semantic retrieval
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  Feedback    Feedback[]
+}
+
+model SchemaSnapshot {
+  id          String   @id @default(uuid())
+  name        String   @unique // Could be database name or namespace
+  topology    Json     // Detailed tables, columns, references, and types
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+}
+
+model QueryLog {
+  id           String   @id @default(uuid())
+  queryHash    String
+  sqlQuery     String
+  user         String   @default("anonymous")
+  runtimeMs    Int
+  rowCount     Int
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  Feedback     Feedback[]
+}
+
+model Feedback {
+  id            String   @id @default(uuid())
+  queryLogId    String?
+  recipeId      String?
+  rating        Int      // 1 for thumbs up, -1 for thumbs down
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  QueryLog      QueryLog?    @relation(fields: [queryLogId], references: [id], onDelete: Cascade)
+  QueryRecipe   QueryRecipe? @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+}
