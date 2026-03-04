@@ -1,0 +1,28 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": [
+    "vite",
+    "tailwindcss",
+    "pnpm",
+    "turborepo",
+    "husky",
+    "commitlint",
+    "vitest",
+    "tsnode",
+    "centy",
+    "cooljoe",
+    "xlink",
+    "iconify",
+    "avenir"
+  ],
+  "ignorePaths": [
+    "node_modules",
+    "dist",
+    "build",
+    "coverage",
+    "**/*.min.js",
+    "pnpm-lock.yaml",
+    "**/*.vsg"
+  ]
+}
