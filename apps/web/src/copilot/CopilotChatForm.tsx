@@ -1,13 +1,13 @@
 import { useState } from 'react';
 
 interface CopilotChatFormProps {
-    onSend: (text: string, intent: 'chat' | 'sql') => void;
+    onSend: (text: string, intent: 'chat' | 'sql' | 'prisma') => void;
     disabled: boolean;
 }
 
 export function CopilotChatForm({ onSend, disabled }: CopilotChatFormProps) {
     const [input, setInput] = useState('');
-    const [mode, setMode] = useState<'chat' | 'sql'>('sql');
+    const [mode, setMode] = useState<'chat' | 'sql' | 'prisma'>('sql');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -22,7 +22,7 @@ export function CopilotChatForm({ onSend, disabled }: CopilotChatFormProps) {
                 value={mode} 
                 onChange={(e) => {
                     const nextMode = e.target.value;
-                    if (nextMode === 'chat' || nextMode === 'sql') {
+                    if (nextMode === 'chat' || nextMode === 'sql' || nextMode === 'prisma') {
                         setMode(nextMode);
                     }
                 }}

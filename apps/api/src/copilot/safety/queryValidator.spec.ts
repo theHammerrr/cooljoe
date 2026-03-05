@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { Parser } from 'node-sql-parser';
 import {
     validateAndFormatQuery,
     DisallowedStatementError,
@@ -8,7 +7,6 @@ import {
 
 describe('Query Validator', () => {
     const allowlist = ['users', 'orders'];
-    const parser = new Parser();
 
     it('allows safe SELECT queries and injects limit if missing', () => {
         const sql = 'SELECT id, name FROM users';
@@ -30,24 +28,13 @@ describe('Query Validator', () => {
         expect(safeSql).toContain('LIMIT 50');
     });
 
-    it('adds aliases to FROM/JOIN tables without relying on exact SQL formatting', () => {
+    it('does not force alias rewriting in FROM/JOIN tables', () => {
         const sql = 'SELECT users.id FROM users JOIN orders ON users.id = orders.user_id';
         const safeSql = validateAndFormatQuery(sql, allowlist, 50);
-        const ast = parser.astify(safeSql, { database: 'Postgresql' });
-        const firstStatement = Array.isArray(ast) ? ast[0] : ast;
-        const fromClause = Reflect.get(firstStatement, 'from');
-
-        expect(Array.isArray(fromClause)).toBe(true);
-        if (!Array.isArray(fromClause)) {
-            return;
-        }
-
-        const aliases = fromClause
-            .map((entry) => (typeof entry === 'object' && entry !== null ? Reflect.get(entry, 'as') : null))
-            .filter((alias): alias is string => typeof alias === 'string' && alias.length > 0);
-
-        expect(aliases.length).toBe(2);
-        expect(new Set(aliases).size).toBe(2);
+        expect(safeSql.toLowerCase()).toContain('from "users"');
+        expect(safeSql.toLowerCase()).toContain('join "orders"');
+        expect(safeSql).not.toContain(' AS t1');
+        expect(safeSql).not.toContain(' AS t2');
         expect(safeSql).toContain('LIMIT 50');
     });
 

@@ -1,114 +1,14 @@
-/* eslint-disable max-lines */
-import { Parser } from 'node-sql-parser';
-import { z } from 'zod';
-
-const parser = new Parser();
-
-const topologySchema = z.record(
-    z.string(),
-    z.array(
-        z.object({
-            column: z.string()
-        })
-    )
-);
-
-type ParsedTopology = z.infer<typeof topologySchema>;
-
-function normalizeIdentifier(value: string): string {
-    return value.replace(/^"+|"+$/g, '').toLowerCase();
-}
-
-function parseTopology(schema: unknown): ParsedTopology | null {
-    const parsed = topologySchema.safeParse(schema);
-    if (!parsed.success) {
-        return null;
-    }
-    return parsed.data;
-}
-
-function addTablesFromFromClause(
-    fromClause: unknown,
-    queryTables: Set<string>,
-    aliasToTable: Map<string, string>
-): void {
-    if (!Array.isArray(fromClause)) {
-        return;
-    }
-
-    for (const tableRef of fromClause) {
-        if (typeof tableRef !== 'object' || tableRef === null) {
-            continue;
-        }
-
-        const tableCandidate = Reflect.get(tableRef, 'table');
-        const dbCandidate = Reflect.get(tableRef, 'db');
-
-        let fullTableName = '';
-        if (typeof tableCandidate === 'string') {
-            const normalizedTable = normalizeIdentifier(tableCandidate);
-            if (typeof dbCandidate === 'string' && dbCandidate) {
-                fullTableName = `${normalizeIdentifier(dbCandidate)}.${normalizedTable}`;
-            } else {
-                fullTableName = normalizedTable;
-            }
-            queryTables.add(fullTableName);
-            aliasToTable.set(normalizedTable, fullTableName);
-        }
-
-        const aliasCandidate = Reflect.get(tableRef, 'as');
-        if (typeof aliasCandidate === 'string' && fullTableName) {
-            aliasToTable.set(normalizeIdentifier(aliasCandidate), fullTableName);
-        }
-    }
-}
-
-interface ColumnReference {
-    column: string;
-    table?: string;
-}
-
-function collectColumnReferences(node: unknown, out: ColumnReference[]): void {
-    if (Array.isArray(node)) {
-        for (const item of node) {
-            collectColumnReferences(item, out);
-        }
-        return;
-    }
-
-    if (typeof node !== 'object' || node === null) {
-        return;
-    }
-
-    const nodeType = Reflect.get(node, 'type');
-    if (nodeType === 'column_ref') {
-        const column = Reflect.get(node, 'column');
-        const table = Reflect.get(node, 'table');
-        if (typeof column === 'string') {
-            out.push({
-                column,
-                table: typeof table === 'string' ? table : undefined
-            });
-        }
-    }
-
-    for (const value of Object.values(node)) {
-        collectColumnReferences(value, out);
-    }
-}
+import { addTablesFromFromClause, collectColumnReferences, parseSqlAst } from './draftSchemaAst';
+import {
+    buildSchemaColumnsByTable,
+    normalizeIdentifier,
+    parseTopology,
+    tableExistsInParsedTopology
+} from './draftSchemaTopology';
 
 export function tableExistsInSchema(schema: unknown, tableName: string): boolean {
     const topology = parseTopology(schema);
-    if (!topology) {
-        return false;
-    }
-    const normalized = normalizeIdentifier(tableName);
-    // tableName could be 'users' or 'auth.users'
-    return Object.keys(topology).some((topologyKey) => {
-        const parts = topologyKey.split('.');
-        const tName = parts.length > 1 ? parts[1] : parts[0];
-        return normalizeIdentifier(topologyKey) === normalized || normalizeIdentifier(tName) === normalized;
-    });
+    return topology ? tableExistsInParsedTopology(topology, tableName) : false;
 }
 
 export function validateDraftSqlAgainstSchema(sql: string, schema: unknown): { valid: boolean; errors: string[] } {
@@ -125,27 +25,13 @@ export function validateDraftSqlAgainstSchemaWithRequirements(
         return { valid: false, errors: ['Schema snapshot is missing or invalid. Click "Sync DB" and retry.'] };
     }
 
-    const schemaColumnsByTable = new Map<string, Set<string>>();
-    for (const [topologyKey, columns] of Object.entries(topology)) {
-        const normalizedKey = normalizeIdentifier(topologyKey);
-        const parts = normalizedKey.split('.');
-        const tableName = parts.length > 1 ? parts[1] : parts[0];
-        const colSet = new Set(columns.map((column) => normalizeIdentifier(column.column)));
-
-        schemaColumnsByTable.set(normalizedKey, colSet);
-        if (!schemaColumnsByTable.has(tableName)) {
-            schemaColumnsByTable.set(tableName, colSet);
-        }
+    const schemaColumnsByTable = buildSchemaColumnsByTable(topology);
+    const astResult = parseSqlAst(sql);
+    if (astResult.error) {
+        return { valid: false, errors: [astResult.error] };
     }
 
-    let ast: unknown;
-    try {
-        ast = parser.astify(sql, { database: 'Postgresql' });
-    } catch (error: unknown) {
-        const parseMessage = error instanceof Error ? error.message : 'Unknown parser error';
-        return { valid: false, errors: [`Invalid SQL syntax: ${parseMessage}`] };
-    }
-
+    const ast = astResult.ast;
     const astArray = Array.isArray(ast) ? ast : [ast];
     const errors = new Set<string>();
 
@@ -179,7 +65,7 @@ export function validateDraftSqlAgainstSchemaWithRequirements(
             }
         }
 
-        const columnRefs: ColumnReference[] = [];
+        const columnRefs: { column: string; table?: string }[] = [];
         collectColumnReferences(statement, columnRefs);
 
         for (const columnRef of columnRefs) {

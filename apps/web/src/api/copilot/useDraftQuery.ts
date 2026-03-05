@@ -7,6 +7,11 @@ interface DraftQueryParams {
     constraints?: string;
 }
 
+export class DraftQueryApiError extends Error {
+    issues?: string[];
+    draft?: unknown;
+}
+
 export const useDraftQuery = () => {
     return useMutation({
         mutationFn: async (params: DraftQueryParams) => {
@@ -15,11 +20,17 @@ export const useDraftQuery = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(params)
             });
+            const payload = await response.json().catch(() => ({}));
             if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || "Failed to draft query");
+                const error = new DraftQueryApiError(payload.error || "Failed to draft query");
+                const issues = Reflect.get(payload, 'issues');
+                if (Array.isArray(issues)) {
+                    error.issues = issues.filter((item): item is string => typeof item === 'string');
+                }
+                error.draft = Reflect.get(payload, 'draft');
+                throw error;
             }
-            return response.json();
+            return payload;
         }
     });
 };

@@ -1,4 +1,3 @@
-/* eslint-disable max-lines */
 
 // Using a simplified local interface to represent what `useRefreshSchema` will ideally hydrate into cache
 interface TopologyColumn {
@@ -61,10 +60,10 @@ export function SchemaExplorer({ topology, isRefreshing, onRefresh }: SchemaExpl
             </div>
             <div className="flex-1 overflow-y-auto p-2">
                 {Object.entries(tree).map(([schema, tables]) => (
-                    <div key={schema} className="mb-2">
-                        <div className="font-bold text-xs text-slate-500 uppercase tracking-wider pl-1 mb-1">
-                            📂 {schema}
-                        </div>
+                    <details key={schema} className="mb-2" open>
+                        <summary className="font-bold text-xs text-slate-500 uppercase tracking-wider pl-1 mb-1 cursor-pointer hover:text-indigo-600 select-none list-none flex items-center gap-1 group outline-none">
+                            <span className="text-[10px] text-slate-400 group-hover:text-indigo-600 transition-colors">▶</span> 📂 {schema}
+                        </summary>
                         <div className="pl-3 border-l border-slate-200 ml-2">
                             {tables.map(table => {
                                 const fullTableName = schema === 'public' && !topology[table] ? `${schema}.${table}` : (topology[`${schema}.${table}`] ? `${schema}.${table}` : table);
@@ -92,7 +91,7 @@ export function SchemaExplorer({ topology, isRefreshing, onRefresh }: SchemaExpl
                                 );
                             })}
                         </div>
-                    </div>
+                    </details>
                 ))}
             </div>
         </div>

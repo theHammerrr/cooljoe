@@ -31,4 +31,10 @@ export interface CopilotMessage {
     queryBlock?: QueryBlock;
     requiresApproval?: boolean;
     tableName?: string;
+    mode?: 'chat' | 'sql' | 'prisma';
+    retryDraft?: {
+        question: string;
+        mode: 'sql' | 'prisma';
+        constraints: string;
+    };
 }

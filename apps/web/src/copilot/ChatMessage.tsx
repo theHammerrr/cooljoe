@@ -1,8 +1,8 @@
-/* eslint-disable max-lines */
 import type { CopilotMessage } from './types';
 import { useRunQuery } from '../api/copilot/useRunQuery';
 import { useAcceptQuery } from '../api/copilot/useAcceptQuery';
 import { useAllowTable } from '../api/copilot/useAllowTable';
+import { QueryBlockCard } from './QueryBlockCard';
 
 interface ChatMessageProps {
     msg: CopilotMessage;
@@ -11,9 +11,10 @@ interface ChatMessageProps {
     onUpdateMessage: (id: string, partialMsg: Partial<CopilotMessage>) => void;
     isEmbedded?: boolean;
     onInjectSql?: (sql: string) => void;
+    onRetryDraft?: (retry: NonNullable<CopilotMessage['retryDraft']>) => void;
 }
 
-export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateMessage, isEmbedded, onInjectSql }: ChatMessageProps) {
+export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateMessage, isEmbedded, onInjectSql, onRetryDraft }: ChatMessageProps) {
     const { mutate: runQuery, isPending: isRunning } = useRunQuery();
     const { mutate: acceptQuery } = useAcceptQuery();
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
@@ -24,30 +25,32 @@ export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateM
             onSuccess: (data) => {
                 if (data.success) {
                     onResults(data.rows);
-                    onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined }); // Clear any stale approval block
+                    onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined });
                 } else if (data.requiresApproval) {
                     onUpdateMessage(msg.id, { requiresApproval: true, tableName: data.table });
                 } else {
-                    alert("Error running query: " + data.error);
+                    alert(`Error running query: ${data.error}`);
                 }
             },
-            onError: (err) => {
-                alert("Error running query: " + err.message);
-            }
+            onError: (err) => alert(`Error running query: ${err.message}`)
         });
     };
 
     const handleAccept = () => {
         if (!msg.queryBlock || !previousUserMessageText) return;
-        acceptQuery({
-            question: previousUserMessageText,
-            query: msg.queryBlock.sql,
-            prismaQuery: msg.queryBlock.prisma,
-            mode: 'sql'
-        }, {
-            onSuccess: (data) => {
-                if (data.success) alert("Query Recipe Saved!");
-            }
+        acceptQuery({ question: previousUserMessageText, query: msg.queryBlock.sql, prismaQuery: msg.queryBlock.prisma, mode: 'sql' }, {
+            onSuccess: (data) => { if (data.success) alert('Query Recipe Saved!'); }
+        });
+    };
+
+    const handleAllowAndRun = () => {
+        if (!msg.tableName) return;
+        allowTable({ table: msg.tableName }, {
+            onSuccess: () => {
+                onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined });
+                handleRun();
+            },
+            onError: (err) => alert(err.message)
         });
     };
 
@@ -56,73 +59,13 @@ export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateM
             <div className={`px-4 py-2 rounded-2xl max-w-[85%] shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
                 {msg.text}
             </div>
-
-            {msg.queryBlock && (
-                <div className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-inner text-xs">
-                    <div className="p-2 border-b border-slate-700 font-semibold text-slate-300 flex justify-between">
-                        <span>SQL Draft: {msg.queryBlock.intent}</span>
-                    </div>
-                    <pre className="p-3 text-green-400 whitespace-pre-wrap font-mono overflow-x-auto">
-                        {msg.queryBlock.sql}
-                    </pre>
-                    
-                    {msg.queryBlock.riskFlags.length > 0 && (
-                        <div className="p-2 bg-yellow-900/50 text-yellow-300 border-t border-slate-700">
-                            ⚠️ {msg.queryBlock.riskFlags.join(", ")}
-                        </div>
-                    )}
-
-                    {msg.requiresApproval && msg.tableName && (
-                        <div className="p-3 bg-red-900/30 text-red-200 border-t border-slate-700 flex flex-col gap-2">
-                            <span className="font-semibold">⚠️ Table "{msg.tableName}" is not allowed.</span>
-                            <button 
-                                onClick={() => {
-                                    const tableName = msg.tableName;
-                                    if (!tableName) return;
-                                    allowTable({ table: tableName }, {
-                                        onSuccess: () => {
-                                            onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined });
-                                            handleRun(); // Auto re-run upon completion
-                                        },
-                                        onError: (err) => alert(err.message)
-                                    });
-                                }}
-                                disabled={isAllowing}
-                                className="bg-red-600 hover:bg-red-500 text-white py-1 px-3 w-fit rounded cursor-pointer disabled:opacity-50"
-                            >
-                                {isAllowing ? "Allowing..." : "Allow & Run"}
-                            </button>
-                        </div>
-                    )}
-
-                    <div className="bg-slate-800 p-2 flex gap-2 border-t border-slate-700">
-                        {isEmbedded && onInjectSql ? (
-                            <button 
-                                onClick={() => onInjectSql(msg.queryBlock!.sql)}
-                                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-1.5 px-3 rounded font-medium transition-colors cursor-pointer"
-                                title="Send SQL to Workspace Editor"
-                            >
-                                ✍️ Inject to Editor
-                            </button>
-                        ) : (
-                            <button 
-                                onClick={handleRun}
-                                disabled={isRunning}
-                                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-3 rounded font-medium transition-colors cursor-pointer disabled:opacity-50"
-                            >
-                                {isRunning ? 'Running...' : 'Run Query'}
-                            </button>
-                        )}
-                        <button 
-                            onClick={handleAccept}
-                            className="bg-slate-600 hover:bg-slate-500 text-slate-200 py-1.5 px-3 rounded font-medium transition-colors cursor-pointer"
-                            title="Accept & Save Recipe"
-                        >
-                            👍 Accept
-                        </button>
-                    </div>
+            {msg.retryDraft && onRetryDraft && (
+                <div className="mt-2 w-full bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 flex items-center justify-between gap-3">
+                    <span>Draft failed validation. Retry with stricter context.</span>
+                    <button onClick={() => msg.retryDraft && onRetryDraft(msg.retryDraft)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded font-medium transition-colors cursor-pointer">Try Again</button>
                 </div>
             )}
+            <QueryBlockCard msg={msg} isEmbedded={isEmbedded} isRunning={isRunning} isAllowing={isAllowing} onRun={handleRun} onAccept={handleAccept} onInjectSql={onInjectSql} onAllowAndRun={handleAllowAndRun} />
         </div>
     );
 }
