@@ -9,9 +9,11 @@ interface ChatMessageProps {
     previousUserMessageText?: string;
     onResults: (rows: Record<string, unknown>[]) => void;
     onUpdateMessage: (id: string, partialMsg: Partial<CopilotMessage>) => void;
+    isEmbedded?: boolean;
+    onInjectSql?: (sql: string) => void;
 }
 
-export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateMessage }: ChatMessageProps) {
+export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateMessage, isEmbedded, onInjectSql }: ChatMessageProps) {
     const { mutate: runQuery, isPending: isRunning } = useRunQuery();
     const { mutate: acceptQuery } = useAcceptQuery();
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
@@ -94,13 +96,23 @@ export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateM
                     )}
 
                     <div className="bg-slate-800 p-2 flex gap-2 border-t border-slate-700">
-                        <button 
-                            onClick={handleRun}
-                            disabled={isRunning}
-                            className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-3 rounded font-medium transition-colors cursor-pointer disabled:opacity-50"
-                        >
-                            {isRunning ? 'Running...' : 'Run Query'}
-                        </button>
+                        {isEmbedded && onInjectSql ? (
+                            <button 
+                                onClick={() => onInjectSql(msg.queryBlock!.sql)}
+                                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white py-1.5 px-3 rounded font-medium transition-colors cursor-pointer"
+                                title="Send SQL to Workspace Editor"
+                            >
+                                ✍️ Inject to Editor
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={handleRun}
+                                disabled={isRunning}
+                                className="flex-1 bg-blue-500 hover:bg-blue-600 text-white py-1.5 px-3 rounded font-medium transition-colors cursor-pointer disabled:opacity-50"
+                            >
+                                {isRunning ? 'Running...' : 'Run Query'}
+                            </button>
+                        )}
                         <button 
                             onClick={handleAccept}
                             className="bg-slate-600 hover:bg-slate-500 text-slate-200 py-1.5 px-3 rounded font-medium transition-colors cursor-pointer"

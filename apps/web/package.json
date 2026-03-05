@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.90.21",
+    "axios": "^1.13.6",
+    "prismjs": "^1.30.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
+    "react-simple-code-editor": "^0.14.1",
     "recharts": "^3.7.0"
   },
   "devDependencies": {
@@ -22,6 +25,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.10.1",
+    "@types/prismjs": "^1.26.6",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

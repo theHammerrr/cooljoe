@@ -25,6 +25,10 @@ class AllowlistService {
         this.allowedTables.add(table.toLowerCase());
     }
 
+    public removeTable(table: string) {
+        this.allowedTables.delete(table.toLowerCase());
+    }
+
     public getAllowedTables(): string[] {
         return Array.from(this.allowedTables);
     }

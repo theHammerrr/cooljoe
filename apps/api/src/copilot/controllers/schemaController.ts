@@ -92,3 +92,18 @@ export const refreshSchema = async (req: Request, res: Response) => {
         res.status(500).json({ error: getErrorMessage(error) });
     }
 }
+
+export const getLatestSchema = async (req: Request, res: Response) => {
+    try {
+        const snapshot = await prisma.schemaSnapshot.findUnique({
+            where: { name: 'public' }
+        });
+
+        if (!snapshot) {
+            return res.json({ schema: null });
+        }
+        res.json({ schema: snapshot });
+    } catch (error: unknown) {
+        res.status(500).json({ error: getErrorMessage(error) });
+    }
+}

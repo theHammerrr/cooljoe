@@ -42,6 +42,7 @@ Rules:
 - Generate ONLY a READ-ONLY SELECT query.
 - Make reasonable assumptions if ambiguous.
 - ALWAYS wrap Postgres table names and column names in double quotes (e.g., "userItem"."createdAt") to preserve exactly case-sensitive queries and prevent schema name collision errors.
+- If Context includes "requiredSchema", you MUST query only that schema and fully-qualify all tables as "requiredSchema"."tableName".
 - The schema topology context includes Primary Keys (isPrimary) and Foreign Key relations (foreignKeyTarget). YOU MUST USE THESE to formulate explicitly correct JOIN ON conditions if crossing multiple tables!
 - Return the output strictly as a JSON object matching this schema:
 {

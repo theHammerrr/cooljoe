@@ -112,6 +112,14 @@ export function tableExistsInSchema(schema: unknown, tableName: string): boolean
 }
 
 export function validateDraftSqlAgainstSchema(sql: string, schema: unknown): { valid: boolean; errors: string[] } {
+    return validateDraftSqlAgainstSchemaWithRequirements(sql, schema);
+}
+
+export function validateDraftSqlAgainstSchemaWithRequirements(
+    sql: string,
+    schema: unknown,
+    requiredSchema?: string
+): { valid: boolean; errors: string[] } {
     const topology = parseTopology(schema);
     if (!topology) {
         return { valid: false, errors: ['Schema snapshot is missing or invalid. Click "Sync DB" and retry.'] };
@@ -154,10 +162,20 @@ export function validateDraftSqlAgainstSchema(sql: string, schema: unknown): { v
         const queryTables = new Set<string>();
         const aliasToTable = new Map<string, string>();
         addTablesFromFromClause(Reflect.get(statement, 'from'), queryTables, aliasToTable);
+        const normalizedRequiredSchema = requiredSchema ? normalizeIdentifier(requiredSchema) : '';
 
         for (const table of queryTables) {
             if (!schemaColumnsByTable.has(table)) {
                 errors.add(`Unknown table in draft SQL: ${table}`);
+            }
+
+            if (normalizedRequiredSchema) {
+                const parts = table.split('.');
+                if (parts.length < 2) {
+                    errors.add(`Table "${table}" must be schema-qualified with "${normalizedRequiredSchema}".`);
+                } else if (normalizeIdentifier(parts[0]) !== normalizedRequiredSchema) {
+                    errors.add(`Table "${table}" is not in required schema "${normalizedRequiredSchema}".`);
+                }
             }
         }
 
