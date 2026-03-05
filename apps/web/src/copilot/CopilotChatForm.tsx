@@ -1,22 +1,37 @@
 import { useState } from 'react';
 
 interface CopilotChatFormProps {
-    onSend: (text: string) => void;
+    onSend: (text: string, intent: 'chat' | 'sql') => void;
     disabled: boolean;
 }
 
 export function CopilotChatForm({ onSend, disabled }: CopilotChatFormProps) {
     const [input, setInput] = useState('');
+    const [mode, setMode] = useState<'chat' | 'sql'>('sql');
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!input.trim() || disabled) return;
-        onSend(input);
+        onSend(input, mode);
         setInput('');
     };
 
     return (
-        <form onSubmit={handleSubmit} className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2 items-center">
+            <select 
+                value={mode} 
+                onChange={(e) => {
+                    const nextMode = e.target.value;
+                    if (nextMode === 'chat' || nextMode === 'sql') {
+                        setMode(nextMode);
+                    }
+                }}
+                className="bg-gray-100 border border-gray-200 text-gray-700 py-2 px-3 rounded-full text-xs font-semibold focus:outline-none"
+                disabled={disabled}
+            >
+                <option value="sql">⚡ SQL Draft</option>
+                <option value="chat">💬 AI Chat</option>
+            </select>
             <input 
                 type="text" 
                 value={input}

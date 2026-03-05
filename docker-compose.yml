@@ -1,0 +1,60 @@
+version: '3.8'
+
+services:
+  # Internal Application Database with Vector Support
+  db:
+    image: ankane/pgvector:latest
+    environment:
+      POSTGRES_USER: copilot_admin
+      POSTGRES_PASSWORD: secure_password
+      POSTGRES_DB: db_copilot
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U copilot_admin -d db_copilot"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Typescript Database Copilot Backend
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      # Connects using Docker's internal DNS network name `db`
+      DATABASE_URL: "postgresql://copilot_admin:secure_password@db:5432/db_copilot"
+      # Target Database to parse context from (Needs to point to User DB)
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL}
+      # Dynamic LLM Provider Selection
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_MODEL: ${AI_MODEL:-gpt-4o}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OLLAMA_HOST: ${OLLAMA_HOST}
+      TABLE_ALLOWLIST: ${TABLE_ALLOWLIST}
+      CLIENT_URL: "http://localhost:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Frontend React Deployment (NGINX)
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        # Route standard Vite API endpoints to the Backend service proxy on :3001
+        VITE_API_URL: "http://localhost:3001"
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
+
+volumes:
+  db_data:

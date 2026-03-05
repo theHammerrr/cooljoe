@@ -23,6 +23,7 @@ export class OllamaProvider implements AIProvider {
             systemPrompt = `Context:\n${JSON.stringify(context)}\n\n`;
         }
 
+        console.time(`chat-${prompt.substring(0, 10)}`);
         const response = await this.ollama.chat({
             model: this.model,
             messages: [
@@ -30,6 +31,7 @@ export class OllamaProvider implements AIProvider {
                 { role: 'user', content: prompt }
             ]
         });
+        console.timeEnd(`chat-${prompt.substring(0, 10)}`);
 
         return response.message.content;
     }
@@ -39,6 +41,8 @@ export class OllamaProvider implements AIProvider {
 Rules:
 - Generate ONLY a READ-ONLY SELECT query.
 - Make reasonable assumptions if ambiguous.
+- ALWAYS wrap Postgres table names and column names in double quotes (e.g., "userItem"."createdAt") to preserve exactly case-sensitive queries and prevent schema name collision errors.
+- The schema topology context includes Primary Keys (isPrimary) and Foreign Key relations (foreignKeyTarget). YOU MUST USE THESE to formulate explicitly correct JOIN ON conditions if crossing multiple tables!
 - Return the output strictly as a JSON object matching this schema:
 {
   "intent": "Short summary of what the query does",
@@ -53,6 +57,7 @@ Context Details:
 ${JSON.stringify(context, null, 2)}
 `;
 
+        console.time('generateDraftQuery');
         const response = await this.ollama.chat({
             model: this.model,
             format: 'json',
@@ -64,6 +69,7 @@ ${JSON.stringify(context, null, 2)}
                 { role: 'user', content: question }
             ],
         });
+        console.timeEnd('generateDraftQuery');
 
         const parsed = JSON.parse(response.message.content || "{}");
         return {

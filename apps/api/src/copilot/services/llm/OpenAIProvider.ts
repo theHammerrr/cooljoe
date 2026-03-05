@@ -1,3 +1,4 @@
+/* eslint-disable max-lines */
 import { AIProvider } from './AIProvider';
 import OpenAI from 'openai';
 
@@ -38,6 +39,8 @@ export class OpenAIProvider implements AIProvider {
 Rules:
 - Generate ONLY a READ-ONLY SELECT query.
 - Make reasonable assumptions if ambiguous.
+- ALWAYS wrap Postgres table names and column names in double quotes (e.g., "userItem"."createdAt") to preserve exactly case-sensitive queries and prevent schema name collision errors.
+- The schema topology context includes Primary Keys (isPrimary) and Foreign Key relations (foreignKeyTarget). YOU MUST USE THESE to formulate explicitly correct JOIN ON conditions if crossing multiple tables!
 - Return the output strictly as a JSON object matching this schema:
 {
   "intent": "Short summary of what the query does",
@@ -52,6 +55,7 @@ Context Context Details:
 ${JSON.stringify(context, null, 2)}
 `;
 
+        console.time('generateDraftQuery-OpenAI'); // Added console.time
         const response = await this.openai.chat.completions.create({
             model: this.model,
             response_format: { type: "json_object" },
@@ -61,6 +65,7 @@ ${JSON.stringify(context, null, 2)}
             ],
             temperature: 0.1
         });
+        console.timeEnd('generateDraftQuery-OpenAI'); // Added console.timeEnd
 
         const parsed = JSON.parse(response.choices[0].message.content || "{}");
         return {
@@ -75,7 +80,7 @@ ${JSON.stringify(context, null, 2)}
 
     async generateExplanation(question: string, sql: string, dataSample: unknown[], _schema: unknown) {
         void _schema;
-        const prompt = `Explain the results of the following executed SQL query to the user based on their question.
+        const systemPrompt = `Explain the results of the following executed SQL query to the user based on their question.
 Question: ${question}
 SQL: ${sql}
 Results Sample (up to 5 rows):
@@ -84,14 +89,16 @@ ${JSON.stringify(dataSample.slice(0, 5))}
 Return a JSON object:
 { "explanation": "Human readable explanation", "followUps": ["Suggested follow up question 1"] }
 `;
+        console.time(`chat-OpenAI-${question.substring(0, 10)}`); // Added console.time, using question for unique ID
         const response = await this.openai.chat.completions.create({
             model: this.model,
             response_format: { type: "json_object" },
             messages: [
-                { role: 'user', content: prompt }
+                { role: 'user', content: systemPrompt } // Changed to systemPrompt
             ],
             temperature: 0.3
         });
+        console.timeEnd(`chat-OpenAI-${question.substring(0, 10)}`); // Added console.timeEnd
 
         const parsed = JSON.parse(response.choices[0].message.content || "{}");
         return {

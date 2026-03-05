@@ -1,16 +1,20 @@
+/* eslint-disable max-lines */
 import type { CopilotMessage } from './types';
 import { useRunQuery } from '../api/copilot/useRunQuery';
 import { useAcceptQuery } from '../api/copilot/useAcceptQuery';
+import { useAllowTable } from '../api/copilot/useAllowTable';
 
 interface ChatMessageProps {
     msg: CopilotMessage;
     previousUserMessageText?: string;
     onResults: (rows: Record<string, unknown>[]) => void;
+    onUpdateMessage: (id: string, partialMsg: Partial<CopilotMessage>) => void;
 }
 
-export function ChatMessage({ msg, previousUserMessageText, onResults }: ChatMessageProps) {
+export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateMessage }: ChatMessageProps) {
     const { mutate: runQuery, isPending: isRunning } = useRunQuery();
     const { mutate: acceptQuery } = useAcceptQuery();
+    const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
 
     const handleRun = () => {
         if (!msg.queryBlock) return;
@@ -18,6 +22,9 @@ export function ChatMessage({ msg, previousUserMessageText, onResults }: ChatMes
             onSuccess: (data) => {
                 if (data.success) {
                     onResults(data.rows);
+                    onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined }); // Clear any stale approval block
+                } else if (data.requiresApproval) {
+                    onUpdateMessage(msg.id, { requiresApproval: true, tableName: data.table });
                 } else {
                     alert("Error running query: " + data.error);
                 }
@@ -60,6 +67,29 @@ export function ChatMessage({ msg, previousUserMessageText, onResults }: ChatMes
                     {msg.queryBlock.riskFlags.length > 0 && (
                         <div className="p-2 bg-yellow-900/50 text-yellow-300 border-t border-slate-700">
                             ⚠️ {msg.queryBlock.riskFlags.join(", ")}
+                        </div>
+                    )}
+
+                    {msg.requiresApproval && msg.tableName && (
+                        <div className="p-3 bg-red-900/30 text-red-200 border-t border-slate-700 flex flex-col gap-2">
+                            <span className="font-semibold">⚠️ Table "{msg.tableName}" is not allowed.</span>
+                            <button 
+                                onClick={() => {
+                                    const tableName = msg.tableName;
+                                    if (!tableName) return;
+                                    allowTable({ table: tableName }, {
+                                        onSuccess: () => {
+                                            onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined });
+                                            handleRun(); // Auto re-run upon completion
+                                        },
+                                        onError: (err) => alert(err.message)
+                                    });
+                                }}
+                                disabled={isAllowing}
+                                className="bg-red-600 hover:bg-red-500 text-white py-1 px-3 w-fit rounded cursor-pointer disabled:opacity-50"
+                            >
+                                {isAllowing ? "Allowing..." : "Allow & Run"}
+                            </button>
                         </div>
                     )}
 

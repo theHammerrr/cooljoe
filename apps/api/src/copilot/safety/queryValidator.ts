@@ -23,13 +23,28 @@ export class DisallowedStatementError extends QueryValidationError {
     }
 }
 
+export class SQLSyntaxError extends QueryValidationError {
+    constructor(public readonly parseMessage: string) {
+        super(`AI generated invalid SQL Syntax. Ensure your prompt asks clearly for executable Read-Only SQL. Parser Trace: ${parseMessage}`);
+        this.name = 'SQLSyntaxError';
+    }
+}
+
 export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimit = 100): string {
     // Parse AST
-    const ast = parser.astify(sql, { database: 'Postgresql' });
+    let ast;
+    let tableList;
+    try {
+        ast = parser.astify(sql, { database: 'Postgresql' });
+        tableList = parser.tableList(sql);
+    } catch (error: unknown) {
+        const parseMessage = error instanceof Error ? error.message : 'Unknown Parser Error';
+        throw new SQLSyntaxError(parseMessage);
+    }
+
     const astArray = Array.isArray(ast) ? ast : [ast];
 
     // 2. Allowlist Enforcement
-    const tableList = parser.tableList(sql);
     for (const tableStr of tableList) {
         // tableStr usually comes out as "db::table", "table", or "crud::db::table"
         const parts = tableStr.split('::');
