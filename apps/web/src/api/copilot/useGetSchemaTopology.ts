@@ -14,6 +14,7 @@ function isTopologyColumn(value: unknown): value is TopologyColumn {
     }
     const column = Reflect.get(value, 'column');
     const type = Reflect.get(value, 'type');
+
     return typeof column === 'string' && typeof type === 'string';
 }
 
@@ -22,21 +23,25 @@ function parseTopologyPayload(payload: unknown): Record<string, TopologyColumn[]
         return null;
     }
     const schema = Reflect.get(payload, 'schema');
+
     if (typeof schema !== 'object' || schema === null) {
         return null;
     }
     const topology = Reflect.get(schema, 'topology');
+
     if (typeof topology !== 'object' || topology === null) {
         return null;
     }
 
     const parsed: Record<string, TopologyColumn[]> = {};
+
     for (const [key, value] of Object.entries(topology)) {
         if (!Array.isArray(value)) {
             continue;
         }
         parsed[key] = value.filter(isTopologyColumn);
     }
+
     return parsed;
 }
 
@@ -47,11 +52,13 @@ export const useGetSchemaTopology = () => {
         queryKey: SCHEMA_TOPOLOGY_QUERY_KEY,
         queryFn: async () => {
             const response = await fetch(`${API_BASE_URL}/api/copilot/schema`);
+
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.error || 'Failed to fetch schema topology');
             }
             const data: unknown = await response.json();
+
             return parseTopologyPayload(data);
         },
         staleTime: 1000 * 60 * 60,

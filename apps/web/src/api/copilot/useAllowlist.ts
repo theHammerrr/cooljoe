@@ -10,9 +10,11 @@ export const useAllowlist = () => {
         queryFn: async () => {
             const res = await axios.get(`${API_BASE_URL}/api/copilot/allow-tables`);
             const allowedTables = res.data?.allowedTables;
+
             if (!Array.isArray(allowedTables)) {
                 return [];
             }
+
             return allowedTables.filter((table): table is string => typeof table === 'string');
         }
     });
@@ -22,6 +24,7 @@ export const useAllowlist = () => {
             const res = await axios.delete(`${API_BASE_URL}/api/copilot/allow-tables`, {
                 data: { table }
             });
+
             return res.data;
         },
         onSuccess: () => {

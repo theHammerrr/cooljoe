@@ -25,11 +25,13 @@ function buildAggregationArgs(plan: StructuredSemanticQueryPlan): Record<string,
 
     for (const node of plan.select) {
         if (!node.agg) continue;
+
         if (node.agg === 'count' && node.column === '*') args._count = true;
         else buckets[toBucket(node.agg)][node.column] = true;
     }
 
     for (const [key, value] of Object.entries(buckets)) if (Object.keys(value).length > 0) args[key] = value;
+
     return args;
 }
 
@@ -40,8 +42,10 @@ export function compilePrismaPlan(plan: StructuredSemanticQueryPlan): string {
 
     if (plan.filters?.length) {
         const where: Record<string, unknown> = {};
+
         for (const filter of plan.filters) {
             const table = stripSchemaName(filter.table);
+
             if (table === modelName) where[filter.column] = mergeFilter(where[filter.column], filter);
             else where[table] = { is: { [filter.column]: mapOperator(filter.op, filter.value) } };
         }
@@ -60,8 +64,10 @@ export function compilePrismaPlan(plan: StructuredSemanticQueryPlan): string {
         Object.assign(args, buildAggregationArgs(plan));
     } else {
         const tree = buildSelectIncludeTree(modelName, plan.joins || [], plan.select);
+
         if (tree !== true) {
             if ('select' in tree) args.select = tree.select;
+
             if ('include' in tree) args.include = tree.include;
         }
     }
@@ -69,9 +75,11 @@ export function compilePrismaPlan(plan: StructuredSemanticQueryPlan): string {
     if (plan.orderBy?.length) {
         args.orderBy = plan.orderBy.map((order) => {
             const table = stripSchemaName(order.table);
+
             return table === modelName ? { [order.column]: order.dir } : { [table]: { [order.column]: order.dir } };
         });
     }
+
     if (plan.limit && plan.limit < 1000) args.take = plan.limit;
 
     return `prisma.${modelName}.${call}(${formatPrismaArgs(args)})`;

@@ -13,6 +13,7 @@ interface QueryBlockCardProps {
 
 export function QueryBlockCard({ msg, isEmbedded, isRunning, isAllowing, onRun, onAccept, onInjectSql, onAllowAndRun }: QueryBlockCardProps) {
     if (!msg.queryBlock) return null;
+
     return (
         <div className="mt-2 w-full bg-slate-900 border border-slate-700 rounded-lg overflow-hidden shadow-inner text-xs">
             <div className="p-2 border-b border-slate-700 font-semibold text-slate-300 flex justify-between">

@@ -88,4 +88,71 @@ describe('Query Compiler', () => {
 
         expect(() => compileSemanticPlan(plan)).toThrowError('without a FROM/JOIN path');
     });
+
+    it('compiles self joins with generated aliases', () => {
+        const plan: SemanticQueryPlan = {
+            intent: 'Employee and boss pairs',
+            assumptions: [],
+            requires_raw_sql: false,
+            select: [
+                { table: 'nitzan.employee', tableRef: 'employee_1', column: 'person_id' },
+                { table: 'nitzan.employee', tableRef: 'employee_2', column: 'boss_id', alias: 'boss_id' }
+            ],
+            joins: [
+                {
+                    fromTable: 'nitzan.employee',
+                    fromColumn: 'boss_id',
+                    toTable: 'nitzan.employee',
+                    toColumn: 'person_id',
+                    type: 'left'
+                }
+            ],
+            limit: 10
+        };
+
+        const result = compileSemanticPlan(plan);
+        expect(result).toContain('FROM "nitzan"."employee" AS "employee_1"');
+        expect(result).toContain('LEFT JOIN "nitzan"."employee" AS "employee_2"');
+        expect(result).toContain('"employee_1"."boss_id" = "employee_2"."person_id"');
+    });
+
+    it('uses alias hint for boss columns when table is repeated', () => {
+        const plan: SemanticQueryPlan = {
+            intent: 'boss names',
+            assumptions: [],
+            requires_raw_sql: false,
+            select: [
+                { table: 'nitzan.person', column: 'first_name', alias: 'person_first_name' },
+                { table: 'nitzan.person', column: 'first_name', alias: 'boss_first_name' }
+            ],
+            joins: [
+                { fromTable: 'nitzan.employee', fromColumn: 'person_id', toTable: 'nitzan.person', toColumn: 'person_id', type: 'left' },
+                { fromTable: 'nitzan.employee', fromColumn: 'boss_id', toTable: 'nitzan.person', toColumn: 'person_id', type: 'left' }
+            ],
+            limit: 10
+        };
+
+        const result = compileSemanticPlan(plan);
+        expect(result).toContain('"person_1"."first_name" AS "person_first_name"');
+        expect(result).toContain('"person_2"."first_name" AS "boss_first_name"');
+    });
+
+    it('prefers explicit role hint over alias heuristics when repeated', () => {
+        const plan: SemanticQueryPlan = {
+            intent: 'boss role select',
+            assumptions: [],
+            requires_raw_sql: false,
+            select: [
+                { table: 'nitzan.person', role: 'boss', column: 'first_name', alias: 'name_value' }
+            ],
+            joins: [
+                { fromTable: 'nitzan.employee', fromColumn: 'person_id', toTable: 'nitzan.person', toColumn: 'person_id', type: 'left' },
+                { fromTable: 'nitzan.employee', fromColumn: 'boss_id', toTable: 'nitzan.person', toColumn: 'person_id', type: 'left' }
+            ],
+            limit: 10
+        };
+
+        const result = compileSemanticPlan(plan);
+        expect(result).toContain('"person_2"."first_name" AS "name_value"');
+    });
 });

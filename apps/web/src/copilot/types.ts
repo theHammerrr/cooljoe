@@ -37,4 +37,10 @@ export interface CopilotMessage {
         mode: 'sql' | 'prisma';
         constraints: string;
     };
+    suggestedDraft?: {
+        question: string;
+        mode: 'sql' | 'prisma';
+        reason?: string;
+    };
+    runError?: string;
 }

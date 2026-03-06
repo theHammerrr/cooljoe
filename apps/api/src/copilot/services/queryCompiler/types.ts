@@ -2,6 +2,8 @@ import { z } from 'zod';
 
 export const SelectSubtreeSchema = z.object({
     table: z.string(),
+    tableRef: z.string().optional(),
+    role: z.string().optional(),
     column: z.string(),
     agg: z.enum(['count', 'sum', 'avg', 'min', 'max']).optional(),
     alias: z.string().optional()
@@ -17,6 +19,8 @@ export const JoinSubtreeSchema = z.object({
 
 export const FilterSubtreeSchema = z.object({
     table: z.string(),
+    tableRef: z.string().optional(),
+    role: z.string().optional(),
     column: z.string(),
     op: z.enum(['=', '!=', '>', '<', '>=', '<=', 'LIKE', 'ILIKE', 'IN']),
     value: z.union([z.string(), z.number(), z.boolean(), z.array(z.union([z.string(), z.number()]))])
@@ -24,11 +28,15 @@ export const FilterSubtreeSchema = z.object({
 
 export const GroupBySubtreeSchema = z.object({
     table: z.string(),
+    tableRef: z.string().optional(),
+    role: z.string().optional(),
     column: z.string()
 });
 
 export const OrderBySubtreeSchema = z.object({
     table: z.string(),
+    tableRef: z.string().optional(),
+    role: z.string().optional(),
     column: z.string(),
     dir: z.enum(['asc', 'desc']).default('asc')
 });

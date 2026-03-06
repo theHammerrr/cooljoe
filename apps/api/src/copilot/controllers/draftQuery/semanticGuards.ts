@@ -3,7 +3,7 @@ function normalizeSql(sql: string): string {
 }
 
 function asksForNames(question: string): boolean {
-    return /\bname|names|first name|last name\b/i.test(question);
+    return /\b(name|names|first name|last name)\b/i.test(question);
 }
 
 export function detectSemanticDraftIssue(
@@ -14,6 +14,7 @@ export function detectSemanticDraftIssue(
     if (deterministicCandidate && deterministicCandidate.confidence < 0.75) {
         const generated = normalizeSql(sql);
         const candidate = normalizeSql(deterministicCandidate.sql);
+
         if (generated === candidate) {
             return 'Generated SQL echoed low-confidence deterministic candidate without resolving missing intent.';
         }
@@ -23,6 +24,7 @@ export function detectSemanticDraftIssue(
         const normalized = normalizeSql(sql);
         const hasNameColumn = normalized.includes('first_name') || normalized.includes('last_name') || normalized.includes('"name"');
         const isWildcardEmployee = normalized.includes('"employee".*') || normalized.includes(' employee.*');
+
         if (isWildcardEmployee && !hasNameColumn) {
             return 'Prompt asks for names but SQL only selects employee.* without explicit name columns.';
         }

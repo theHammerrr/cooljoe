@@ -26,6 +26,7 @@ interface BuildDraftContextInput {
 
 export function buildDraftContext(input: BuildDraftContextInput): Record<string, unknown> {
     return {
+        schema: input.schema,
         joinGraph: input.joinGraph,
         tableCatalog: input.tableCatalog,
         glossary: input.glossary,
@@ -41,6 +42,7 @@ export function buildDraftContext(input: BuildDraftContextInput): Record<string,
 
 export function buildApiDraftPayload(draft: SemanticQueryPlan, sql: string) {
     let prismaStr = '';
+
     try {
         if (!draft.requires_raw_sql) {
             prismaStr = compilePrismaPlan(draft);

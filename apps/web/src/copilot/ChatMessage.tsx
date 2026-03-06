@@ -12,9 +12,10 @@ interface ChatMessageProps {
     isEmbedded?: boolean;
     onInjectSql?: (sql: string, prisma?: string) => void;
     onRetryDraft?: (retry: NonNullable<CopilotMessage['retryDraft']>) => void;
+    onSuggestedDraft?: (draft: NonNullable<CopilotMessage['suggestedDraft']>) => void;
 }
 
-export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateMessage, isEmbedded, onInjectSql, onRetryDraft }: ChatMessageProps) {
+export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateMessage, isEmbedded, onInjectSql, onRetryDraft, onSuggestedDraft }: ChatMessageProps) {
     const { mutate: runQuery, isPending: isRunning } = useRunQuery();
     const { mutate: acceptQuery } = useAcceptQuery();
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
@@ -25,14 +26,14 @@ export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateM
             onSuccess: (data) => {
                 if (data.success) {
                     onResults(data.rows);
-                    onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined });
+                    onUpdateMessage(msg.id, { requiresApproval: false, tableName: undefined, runError: undefined });
                 } else if (data.requiresApproval) {
-                    onUpdateMessage(msg.id, { requiresApproval: true, tableName: data.table });
+                    onUpdateMessage(msg.id, { requiresApproval: true, tableName: data.table, runError: undefined });
                 } else {
-                    alert(`Error running query: ${data.error}`);
+                    onUpdateMessage(msg.id, { runError: data.error || 'Error running query.' });
                 }
             },
-            onError: (err) => alert(`Error running query: ${err.message}`)
+            onError: (err) => onUpdateMessage(msg.id, { runError: err.message || 'Error running query.' })
         });
     };
 
@@ -56,15 +57,44 @@ export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateM
 
     return (
         <div className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-            <div className={`px-4 py-2 rounded-2xl max-w-[85%] shadow-sm ${msg.role === 'user' ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
+            <div className={`px-3.5 py-2.5 rounded-xl max-w-[88%] text-sm leading-relaxed ${
+                msg.role === 'user'
+                    ? 'bg-slate-700 text-slate-100 rounded-br-none'
+                    : 'bg-white/5 border border-white/5 text-slate-300 rounded-bl-none'
+            }`}>
                 {msg.text}
             </div>
+
             {msg.retryDraft && onRetryDraft && (
-                <div className="mt-2 w-full bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 flex items-center justify-between gap-3">
+                <div className="mt-2 w-full bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-xs text-red-300 flex items-center justify-between gap-3">
                     <span>Draft failed validation. Retry with stricter context.</span>
-                    <button onClick={() => msg.retryDraft && onRetryDraft(msg.retryDraft)} className="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded font-medium transition-colors cursor-pointer">Try Again</button>
+                    <button
+                        onClick={() => msg.retryDraft && onRetryDraft(msg.retryDraft)}
+                        className="bg-red-500/20 hover:bg-red-500/30 border border-red-500/20 text-red-300 px-3 py-1 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors shrink-0"
+                    >
+                        Try Again
+                    </button>
                 </div>
             )}
+
+            {msg.suggestedDraft && onSuggestedDraft && (
+                <div className="mt-2 w-full bg-violet-500/10 border border-violet-500/20 rounded-lg p-3 text-xs text-violet-300 flex items-center justify-between gap-3">
+                    <span>{msg.suggestedDraft.reason || 'Generate a draft query from this request.'}</span>
+                    <button
+                        onClick={() => msg.suggestedDraft && onSuggestedDraft(msg.suggestedDraft)}
+                        className="bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/20 text-violet-300 px-3 py-1 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors shrink-0"
+                    >
+                        Generate {msg.suggestedDraft.mode.toUpperCase()}
+                    </button>
+                </div>
+            )}
+
+            {msg.runError && (
+                <div className="mt-2 w-full bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-xs text-red-300">
+                    {msg.runError}
+                </div>
+            )}
+
             <QueryBlockCard msg={msg} isEmbedded={isEmbedded} isRunning={isRunning} isAllowing={isAllowing} onRun={handleRun} onAccept={handleAccept} onInjectSql={onInjectSql} onAllowAndRun={handleAllowAndRun} />
         </div>
     );

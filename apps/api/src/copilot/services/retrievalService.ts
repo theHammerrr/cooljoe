@@ -20,6 +20,7 @@ export class RetrievalService {
             ORDER BY embedding <=> ${embedding}::vector
             LIMIT ${limit}
         `;
+
         return recipes;
     }
 
@@ -35,6 +36,7 @@ export class RetrievalService {
             ORDER BY embedding <=> ${embedding}::vector
             LIMIT ${limit}
         `;
+
         return docs;
     }
 
@@ -45,6 +47,7 @@ export class RetrievalService {
         const snapshot = await prisma.schemaSnapshot.findFirst({
             orderBy: { createdAt: 'desc' }
         });
+
         return snapshot?.topology || {};
     }
 
@@ -69,6 +72,7 @@ export class RetrievalService {
                 NOW()
             )
         `;
+
         return true;
     }
 }

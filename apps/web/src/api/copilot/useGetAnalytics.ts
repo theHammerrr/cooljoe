@@ -19,10 +19,12 @@ export const useGetAnalytics = () => {
         queryKey: ['analytics'],
         queryFn: async () => {
             const response = await fetch(`${API_BASE_URL}/api/copilot/analytics`);
+
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to load analytics");
             }
+
             return response.json();
         }
     });

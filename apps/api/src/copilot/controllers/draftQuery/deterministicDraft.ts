@@ -15,6 +15,7 @@ function buildPkColumns(table: TableRef): TopologyColumn[] {
 
 function buildSingleTableDraft(question: string, table: TableRef): DraftQueryResult | null {
     if (!/\b(all|everything|every|list|show|get|retrieve)\b/i.test(question)) return null;
+
     return {
         intent: `Retrieve records from ${table.fullName}`,
         assumptions: [`User requested rows from table "${table.fullName}".`],
@@ -29,9 +30,12 @@ function buildBossDraft(question: string, tables: TableRef[]): DraftQueryResult 
     if (!/\bboss(es)?\b/i.test(question)) return null;
     const employee = tables.find((table) => table.tableName === 'employee');
     const person = employee ? tables.find((table) => table.tableName === 'person' && table.schemaName === employee.schemaName) : undefined;
+
     if (!employee || !person) return null;
+
     if (employee.fkByColumn.get('boss_id') !== employee.fullName || employee.fkByColumn.get('person_id') !== person.fullName) return null;
     const personNameColumns = findColumnForName(person.columnsSet);
+
     if (!personNameColumns.length) return null;
 
     const selectCols = personNameColumns.map((column) => `ep.${quoteIdentifier(column)} ${quoteIdentifier(`employee_${column}`)}`)
@@ -63,19 +67,24 @@ function buildBossDraft(question: string, tables: TableRef[]): DraftQueryResult 
 
 export function resolveDeterministicDraft(question: string, schema: unknown, requiredSchema?: string): DeterministicResolution | null {
     const tables = buildTableRefs(schema, requiredSchema);
+
     if (!tables.length) return null;
     const mentionedTables = tables.filter((table) => tableMentioned(question, table.tableName, table.schemaName));
     const scope = mentionedTables.length ? mentionedTables : tables;
 
     const bossDraft = buildBossDraft(question, scope);
+
     if (bossDraft) {
         const score = scoreBossResolution(question, mentionedTables.some((table) => table.tableName === 'employee'), /\bboss(es)?\b/i.test(question));
+
         return { draft: bossDraft, confidence: score.confidence, reasons: score.reasons };
     }
 
     if (mentionedTables.length !== 1) return null;
     const singleTableDraft = buildSingleTableDraft(question, mentionedTables[0]);
+
     if (!singleTableDraft) return null;
     const score = scoreSingleTableResolution(question, mentionedTables.length, mentionedTables[0]);
+
     return { draft: singleTableDraft, confidence: score.confidence, reasons: score.reasons };
 }

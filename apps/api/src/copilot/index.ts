@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { refreshSchema, getLatestSchema } from './controllers/schemaController';
-import { draftQuery } from './controllers/draftQuery';
+import { draftQuery, draftQueryStatus, issueDraftQueryToken } from './controllers/draftQuery';
 import { runQuery } from './controllers/runQuery';
 import { explainResults } from './controllers/explainResults';
 import { acceptQuery } from './controllers/acceptQuery';
@@ -22,6 +22,8 @@ router.delete('/allow-tables', removeTable);
 
 // Copilot AI Paths
 router.post('/draft-query', draftQuery);
+router.post('/draft-query-token', issueDraftQueryToken);
+router.get('/draft-query-status/:requestId', draftQueryStatus);
 router.post('/run-query', runQuery);
 router.post('/explain-results', explainResults);
 router.post('/accept-query', acceptQuery);

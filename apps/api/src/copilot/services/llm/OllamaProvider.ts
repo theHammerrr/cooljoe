@@ -1,6 +1,6 @@
 import { AIProvider } from './AIProvider';
 import { Ollama } from 'ollama';
-import { buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
+import { buildChatSystemPrompt, buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
 import { parseDraftResponse, parseExplanationResponse } from './responseParsers';
 
 export class OllamaProvider implements AIProvider {
@@ -19,10 +19,7 @@ export class OllamaProvider implements AIProvider {
     }
 
     async generateChatResponse(prompt: string, context?: unknown): Promise<string> {
-        let systemPrompt = '';
-        if (context) {
-            systemPrompt = `Context:\n${JSON.stringify(context)}\n\n`;
-        }
+        const systemPrompt = buildChatSystemPrompt(context);
 
         console.time(`chat-${prompt.substring(0, 10)}`);
         const response = await this.ollama.chat({
@@ -78,6 +75,7 @@ export class OllamaProvider implements AIProvider {
         // Ollama embedding endpoint typically takes one text at a time via the JS SDK currently,
         // or we can map over them.
         const embeddings = [];
+
         for (const text of texts) {
             const response = await this.ollama.embeddings({
                 model: this.embeddingModel,
@@ -85,6 +83,7 @@ export class OllamaProvider implements AIProvider {
             });
             embeddings.push(response.embedding);
         }
+
         return embeddings;
     }
 }

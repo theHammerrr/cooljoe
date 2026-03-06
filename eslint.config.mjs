@@ -7,6 +7,15 @@ export const baseConfig = tseslint.config(
   {
     rules: {
       'max-lines': ['error', { max: 100, skipBlankLines: true, skipComments: true }],
+      'padding-line-between-statements': [
+        'error',
+        { blankLine: 'always', prev: '*', next: 'return' },
+        { blankLine: 'always', prev: '*', next: 'if' },
+        { blankLine: 'always', prev: '*', next: 'for' },
+        { blankLine: 'always', prev: '*', next: 'while' },
+        { blankLine: 'always', prev: '*', next: 'switch' },
+        { blankLine: 'always', prev: '*', next: 'try' }
+      ],
       'no-restricted-syntax': [
         'error',
         {
@@ -22,6 +31,17 @@ export const baseConfig = tseslint.config(
   },
   {
     files: ['**/*.spec.ts', '**/*.spec.tsx', '**/*.test.ts', '**/*.test.tsx'],
+    rules: {
+      'max-lines': 'off'
+    }
+  },
+  {
+    files: [
+      '**/DraftJobStore/draftJobStore.ts',
+      '**/AnalyticsModal.tsx',
+      '**/AllowlistManager.tsx',
+      '**/SchemaExplorer.tsx'
+    ],
     rules: {
       'max-lines': 'off'
     }

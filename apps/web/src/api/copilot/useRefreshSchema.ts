@@ -11,10 +11,12 @@ export const useRefreshSchema = () => {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' }
             });
+
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to refresh schema");
             }
+
             return response.json();
         },
         onSuccess: async () => {

@@ -61,6 +61,7 @@ export const refreshSchema = async (req: Request, res: Response) => {
         // Transform into a structured topology
         const topology = schemaRows.reduce((acc: Record<string, TopologyColumn[]>, row) => {
             const tableKey = `${row.table_schema}.${row.table_name}`;
+
             if (!acc[tableKey]) {
                 acc[tableKey] = [];
             }
@@ -70,6 +71,7 @@ export const refreshSchema = async (req: Request, res: Response) => {
                 isPrimary: row.is_primary === 'PRIMARY KEY',
                 foreignKeyTarget: row.foreign_key_target || null
             });
+
             return acc;
         }, {});
         const topologyJson = topologySchema.parse(topology);

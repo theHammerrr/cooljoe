@@ -14,70 +14,80 @@ export function AllowlistManager({ onClose }: AllowlistManagerProps) {
 
     const handleAdd = (e: React.FormEvent) => {
         e.preventDefault();
+
         if (!newTable.trim()) return;
-        
+
         allowTable({ table: newTable.trim() }, {
             onSuccess: () => {
                 setSuccessMsg(`Added '${newTable.trim()}' to allowlist.`);
                 setNewTable('');
                 setTimeout(() => setSuccessMsg(''), 3000);
             },
-            onError: (err) => {
-                alert(`Error: ${err.message}`);
-            }
+            onError: (err) => { alert(`Error: ${err.message}`); }
         });
     };
 
     return (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden">
-                <div className="bg-slate-800 p-4 text-white flex justify-between items-center shrink-0">
-                    <h2 className="font-bold text-lg flex items-center gap-2">
-                        🛡️ Table Permissions Allowlist
-                    </h2>
-                    <button onClick={onClose} className="hover:bg-white/20 px-2 py-1 rounded transition-colors text-lg" title="Close">
-                        ✕
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#161b22] border border-white/10 rounded-xl shadow-2xl w-full max-w-md flex flex-col max-h-[85vh] overflow-hidden">
+                {/* Header */}
+                <div className="px-5 py-4 border-b border-white/5 flex justify-between items-center shrink-0">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 bg-emerald-500/10 border border-emerald-500/20 rounded-md flex items-center justify-center">
+                            <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                        </div>
+                        <h2 className="font-black text-sm text-slate-200 uppercase tracking-widest">Table Allowlist</h2>
+                    </div>
+                    <button onClick={onClose} className="text-slate-600 hover:text-slate-300 p-1.5 hover:bg-white/5 rounded transition-colors">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
                     </button>
                 </div>
 
-                <div className="p-4 bg-slate-50 border-b border-slate-200">
-                    <p className="text-sm text-slate-600 mb-3">
-                        The AI and manual execution engines are strictly sandboxed. They can ONLY query tables explicitly listed below.
+                {/* Add form */}
+                <div className="px-5 py-4 border-b border-white/5 shrink-0">
+                    <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                        Only explicitly allowed tables can be queried by the AI and manual execution engines.
                     </p>
                     <form onSubmit={handleAdd} className="flex gap-2">
-                        <input 
-                            type="text" 
+                        <input
+                            type="text"
                             value={newTable}
                             onChange={e => setNewTable(e.target.value)}
                             placeholder="e.g., auth.users"
-                            className="flex-1 border border-slate-300 rounded px-3 py-1.5 text-sm focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 font-mono"
+                            className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-slate-300 placeholder-slate-600 focus:outline-none focus:border-white/20 font-mono"
                         />
-                        <button 
+                        <button
                             type="submit"
                             disabled={isAdding || !newTable.trim()}
-                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-1.5 text-sm rounded transition-colors font-medium disabled:opacity-50"
+                            className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 px-4 py-2 text-[11px] rounded-lg transition-colors font-black uppercase tracking-widest disabled:opacity-40"
                         >
-                            {isAdding ? "Adding..." : "+ Add"}
+                            {isAdding ? 'Adding...' : '+ Add'}
                         </button>
                     </form>
                     {successMsg && (
-                        <div className="mt-2 text-xs text-green-600 bg-green-50 p-1.5 rounded border border-green-200 flex items-center gap-1">
-                            ✅ {successMsg}
+                        <div className="mt-2 text-[11px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 p-2 rounded-lg flex items-center gap-1.5">
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
+                            {successMsg}
                         </div>
                     )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto p-4 bg-white">
+                {/* Table list */}
+                <div className="flex-1 overflow-y-auto px-5 py-4">
                     {isFetching ? (
-                        <div className="flex justify-center py-8 text-slate-400">Loading configurations...</div>
+                        <div className="flex justify-center py-8 text-slate-600 text-sm">Loading...</div>
                     ) : allowedTables.length === 0 ? (
-                        <div className="text-center py-8 text-slate-500 italic">No tables allowed. All queries will be blocked.</div>
+                        <div className="text-center py-8 text-slate-600 text-xs font-medium uppercase tracking-widest">No tables allowed. All queries will be blocked.</div>
                     ) : (
-                        <ul className="flex flex-col gap-2">
+                        <ul className="flex flex-col gap-1.5">
                             {allowedTables.map((table: string) => (
-                                <li key={table} className="flex justify-between items-center p-2 rounded border border-slate-100 bg-slate-50 hover:bg-slate-100 group transition-colors">
-                                    <span className="font-mono text-sm text-slate-700 font-medium">📜 {table}</span>
-                                    <button 
+                                <li key={table} className="flex justify-between items-center px-3 py-2.5 rounded-lg border border-white/5 bg-white/5 hover:bg-white/8 group transition-colors">
+                                    <span className="font-mono text-sm text-slate-400 font-medium truncate">{table}</span>
+                                    <button
                                         onClick={() => {
                                             removeTable(table, {
                                                 onSuccess: () => {
@@ -87,7 +97,7 @@ export function AllowlistManager({ onClose }: AllowlistManagerProps) {
                                             });
                                         }}
                                         disabled={isRemoving}
-                                        className="text-red-500 bg-red-50 hover:bg-red-100 px-2 py-1 rounded text-xs transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-50 font-semibold"
+                                        className="text-red-400 hover:text-red-300 text-[10px] font-black uppercase tracking-widest transition-colors opacity-0 group-hover:opacity-100 disabled:opacity-40 ml-3 shrink-0"
                                         title={`Revoke access to ${table}`}
                                     >
                                         Revoke

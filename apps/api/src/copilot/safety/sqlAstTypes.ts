@@ -27,21 +27,26 @@ export function isAstSelectStatement(value: unknown): value is AstSelectStatemen
     if (!isAstObject(value)) {
         return false;
     }
+
     return Reflect.get(value, 'type') === 'select';
 }
 
 export function toAstStatementArray(ast: unknown): AstStatement[] {
     if (Array.isArray(ast)) {
         const out: AstStatement[] = [];
+
         for (const item of ast) {
             if (isAstObject(item)) {
                 out.push(item);
             }
         }
+
         return out;
     }
+
     if (isAstObject(ast)) {
         return [ast];
     }
+
     return [];
 }

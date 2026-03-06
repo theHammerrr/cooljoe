@@ -1,6 +1,6 @@
 import { AIProvider } from './AIProvider';
 import OpenAI from 'openai';
-import { buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
+import { buildChatSystemPrompt, buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
 import { parseDraftResponse, parseExplanationResponse } from './responseParsers';
 
 export class OpenAIProvider implements AIProvider {
@@ -14,6 +14,7 @@ export class OpenAIProvider implements AIProvider {
         embeddingModel = process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small'
     ) {
         const key = apiKey || process.env.OPENAI_API_KEY;
+
         if (!key) throw new Error("OPENAI_API_KEY is missing");
         this.openai = new OpenAI({ apiKey: key });
         this.model = model;
@@ -21,10 +22,9 @@ export class OpenAIProvider implements AIProvider {
     }
 
     async generateChatResponse(prompt: string, context?: unknown): Promise<string> {
+        const systemPrompt = buildChatSystemPrompt(context);
         const messages: { role: 'system' | 'user' | 'assistant'; content: string }[] = [];
-        if (context) {
-            messages.push({ role: 'system', content: `Context:\n${JSON.stringify(context)}` });
-        }
+        messages.push({ role: 'system', content: systemPrompt });
         messages.push({ role: 'user', content: prompt });
 
         const response = await this.openai.chat.completions.create({
@@ -75,6 +75,7 @@ export class OpenAIProvider implements AIProvider {
             model: this.embeddingModel,
             input: texts
         });
+
         return response.data.map(d => d.embedding);
     }
 }

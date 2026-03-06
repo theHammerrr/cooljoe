@@ -20,6 +20,7 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, onResetInjected }:
     const [activeTab, setActiveTab] = useState<'sql' | 'prisma'>('sql');
     const [tableResults, setTableResults] = useState<Record<string, unknown>[] | null>(null);
     const [approvalTable, setApprovalTable] = useState<string | null>(null);
+    const [runError, setRunError] = useState<string | null>(null);
     const { mutate: runQuery, isPending: isRunning } = useRunQuery();
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
 
@@ -29,9 +30,24 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, onResetInjected }:
     const handleRun = () => {
         if (!effectiveSql.trim()) return;
         setApprovalTable(null);
+        setRunError(null);
         runQuery({ query: effectiveSql, mode: 'sql' }, {
-            onSuccess: (d) => d.success ? setTableResults(d.rows) : d.requiresApproval ? setApprovalTable(d.table) : console.error(d.error),
-            onError: (err) => console.error(err.message)
+            onSuccess: (d) => {
+                if (d.success) {
+                    setTableResults(d.rows);
+                    setRunError(null);
+
+                    return;
+                }
+
+                if (d.requiresApproval) {
+                    setApprovalTable(d.table);
+
+                    return;
+                }
+                setRunError(d.error || 'Query execution failed.');
+            },
+            onError: (err) => setRunError(err.message || 'Query execution failed.')
         });
     };
 
@@ -67,6 +83,10 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, onResetInjected }:
                             </div>
                         ) : tableResults ? (
                             <ResultsTable tableResults={tableResults} onClear={() => setTableResults(null)} />
+                        ) : runError ? (
+                            <div className="my-auto border border-red-500/40 bg-red-950/30 text-red-200 rounded-lg px-4 py-3 text-sm">
+                                {runError}
+                            </div>
                         ) : (
                             <QueryWorkspaceEmptyState activeTab={activeTab} />
                         )}

@@ -4,6 +4,8 @@ import { executeTargetQuery } from '../services/executionService';
 import { PrismaClient } from '@prisma/client';
 import { getErrorMessage } from '../utils/errorUtils';
 import { allowlistService } from '../services/allowlistService';
+import { retrievalService } from '../services/retrievalService';
+import { validateRunQueryTablesAgainstSchema } from '../safety/runQuerySchemaGuard';
 import crypto from 'crypto';
 
 const prisma = new PrismaClient();
@@ -16,6 +18,9 @@ export const runQuery = async (req: Request, res: Response) => {
         console.time('runQuery-AST');
         const safeSql = validateAndFormatQuery(query, allowlist);
         console.timeEnd('runQuery-AST');
+
+        const latestSchema = await retrievalService.getLatestSchema();
+        validateRunQueryTablesAgainstSchema(safeSql, latestSchema);
 
         console.time('runQuery-DBTarget');
         const { rows, runtimeMs, rowCount } = await executeTargetQuery(safeSql);

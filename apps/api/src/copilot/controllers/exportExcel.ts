@@ -5,6 +5,7 @@ import { getErrorMessage } from '../utils/errorUtils';
 export const exportExcel = async (req: Request, res: Response) => {
     try {
         const { results } = req.body;
+
         if (!results || !Array.isArray(results) || results.length === 0) {
             return res.status(400).json({ error: "No results provided for export." });
         }

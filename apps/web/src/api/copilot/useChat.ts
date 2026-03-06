@@ -6,18 +6,30 @@ interface ChatParams {
     context?: unknown;
 }
 
+export interface ChatResponse {
+    success: boolean;
+    message: string;
+    suggestedDraft?: {
+        question: string;
+        mode: 'sql' | 'prisma';
+        reason?: string;
+    } | null;
+}
+
 export const useChat = () => {
     return useMutation({
-        mutationFn: async (params: ChatParams) => {
+        mutationFn: async (params: ChatParams): Promise<ChatResponse> => {
             const response = await fetch(`${API_BASE_URL}/api/copilot/chat`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(params)
             });
+
             if (!response.ok) {
                 const err = await response.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to chat with AI");
             }
+
             return response.json();
         }
     });

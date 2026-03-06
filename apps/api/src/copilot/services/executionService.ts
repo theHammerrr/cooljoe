@@ -18,6 +18,7 @@ function getTargetPool(): Pool {
             statement_timeout: 30000,
         });
     }
+
     return pool;
 }
 

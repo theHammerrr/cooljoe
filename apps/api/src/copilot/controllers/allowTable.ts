@@ -14,6 +14,7 @@ export const allowTable = async (req: Request, res: Response) => {
 
         const normalizedTable = table.trim().toLowerCase();
         const latestSchema = await retrievalService.getLatestSchema();
+
         if (!tableExistsInSchema(latestSchema, normalizedTable)) {
             return res.status(400).json({
                 error: `Table '${normalizedTable}' does not exist in the current schema snapshot. Click Sync DB and retry.`

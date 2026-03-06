@@ -11,6 +11,7 @@ class AllowlistService {
         const envList = process.env.TABLE_ALLOWLIST || 'users,orders,products,glossary,e2e_test_users';
         envList.split(',').forEach(t => {
             const table = t.trim().toLowerCase();
+
             if (table) {
                 this.allowedTables.add(table);
             }

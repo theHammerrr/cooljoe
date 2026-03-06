@@ -37,6 +37,7 @@ export function normalizeQuotedSchemaTableIdentifiers(sql: string): string {
 
 function collectTablesFromSelectNode(selectNode: AstSelectStatement, out: Set<string>): void {
     const fromClause = selectNode.from;
+
     if (!Array.isArray(fromClause)) {
         return;
     }
@@ -69,6 +70,7 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
 
     // Parse AST
     let ast;
+
     try {
         ast = parser.astify(normalizedSql, { database: 'Postgresql' });
     } catch (error: unknown) {
@@ -106,6 +108,7 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
         } else {
             // If limit exists, cap it without exceeding maxLimit
             const currentLimit = node.limit.value[0]?.value;
+
             if (typeof currentLimit === 'number' && currentLimit > maxLimit) {
                 node.limit.value[0].value = maxLimit;
             }

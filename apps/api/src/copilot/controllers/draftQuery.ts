@@ -1,76 +1,67 @@
 import { Request, Response } from 'express';
-import { retrievalService } from '../services/retrievalService';
-import { getProvider } from '../services/llm/providerFactory';
-import { getErrorMessage } from '../utils/errorUtils';
-import { validateDraftSqlAgainstSchemaWithRequirements } from '../safety/draftSchemaValidator';
-import { resolveDeterministicDraft } from './draftQuery/deterministicDraft';
-import { buildJoinGraph, buildTableCatalog, detectRequestedSchema } from './draftQuery/schemaContext';
-import { buildApiDraftPayload, buildDraftContext, DraftTargetMode } from './draftQuery/buildDraftContext';
-import { executeDraftAttempts } from './draftQuery/executeDraftAttempts';
+import { getDraftStage } from './draftQuery/stageTracker';
+import { createDraftJobId, DraftQueryCommandSchema } from '../domain/draftQuery';
+import { issueDraftStatusToken, verifyDraftStatusToken } from '../domain/draftQueryToken';
+import { draftJobStore } from '../application/DraftJobStore';
+import { draftQueryApplicationService } from '../application/draftQueryApplicationService';
 
-const aiProvider = getProvider();
-const DETERMINISTIC_CONFIDENCE_THRESHOLD = 0.75;
+draftJobStore.ensureEventSubscription();
+
+export const issueDraftQueryToken = async (_req: Request, res: Response) => {
+    const requestId = createDraftJobId();
+    const issued = issueDraftStatusToken(requestId);
+
+    return res.json({
+        requestId,
+        statusToken: issued.token,
+        expiresAt: issued.expiresAt
+    });
+};
 
 export const draftQuery = async (req: Request, res: Response) => {
     const traceId = `draft-${Date.now().toString(36)}`;
     console.time(`[${traceId}] draftQuery-total`);
+    const parsed = DraftQueryCommandSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+        return res.status(400).json({
+            error: 'Invalid draft query payload.',
+            issues: parsed.error.issues.map((issue) => `${issue.path.join('.') || 'body'}: ${issue.message}`)
+        });
+    }
+
+    const command = parsed.data;
+    const requestId = command.requestId;
+    const statusToken = command.statusToken;
+
+    if (!requestId || !statusToken || !verifyDraftStatusToken(statusToken, requestId)) {
+        return res.status(401).json({ error: 'Invalid or expired draft status token.' });
+    }
+
     try {
-        const { question, preferred, constraints } = req.body;
-        const preferredMode: DraftTargetMode = preferred === 'prisma' ? 'prisma' : 'sql';
-        console.time(`[${traceId}] retrieval`);
-        const [relatedDocs, relatedRecipes, schema] = await Promise.all([
-            retrievalService.findRelevantDocs(question, 2),
-            retrievalService.findRelevantRecipes(question, 2),
-            retrievalService.getLatestSchema()
-        ]);
-        console.timeEnd(`[${traceId}] retrieval`);
+        const result = await draftQueryApplicationService.runDraftJob(command, requestId, traceId);
 
-        const requestedSchema = detectRequestedSchema(question, schema);
-        const deterministic = resolveDeterministicDraft(question, schema, requestedSchema);
-        if (deterministic && deterministic.confidence >= DETERMINISTIC_CONFIDENCE_THRESHOLD) {
-            const valid = validateDraftSqlAgainstSchemaWithRequirements(deterministic.draft.sql, schema, requestedSchema);
-            if (valid.valid) return res.json(deterministic.draft);
-        }
-
-        const joinGraph = buildJoinGraph(schema, requestedSchema);
-        const context = buildDraftContext({
-            schema,
-            joinGraph,
-            tableCatalog: buildTableCatalog(schema, requestedSchema),
-            glossary: relatedDocs,
-            similarExamples: relatedRecipes,
-            preferredMode,
-            constraints,
-            requiredSchema: requestedSchema,
-            deterministicCandidate: deterministic ? {
-                confidence: deterministic.confidence,
-                reasons: deterministic.reasons,
-                sql: deterministic.draft.sql
-            } : undefined
-        });
-
-        const result = await executeDraftAttempts({
-            traceId,
-            question,
-            constraints,
-            context,
-            schema,
-            joinGraph,
-            requestedSchema,
-            deterministicCandidate: deterministic ? { confidence: deterministic.confidence, sql: deterministic.draft.sql } : undefined,
-            generateDraftQuery: (q, c) => aiProvider.generateDraftQuery(q, c),
-            validateSql: (candidateSql, currentSchema, required) =>
-                validateDraftSqlAgainstSchemaWithRequirements(candidateSql, currentSchema, required)
-        });
-
-        if (!result.validation.valid || !result.draft) {
-            return res.status(422).json({ error: 'Generated SQL failed schema validation.', issues: result.validation.errors, draft: result.draft });
-        }
-
-        return res.json(buildApiDraftPayload(result.draft, result.sql));
-    } catch (error: unknown) {
-        return res.status(500).json({ error: getErrorMessage(error) });
+        return res.status(result.status).json(result.payload);
     } finally {
         console.timeEnd(`[${traceId}] draftQuery-total`);
     }
+};
+
+export const draftQueryStatus = async (req: Request, res: Response) => {
+    const requestId = req.params.requestId;
+    const token = typeof req.query?.token === 'string' ? req.query.token : '';
+
+    if (!requestId) return res.status(400).json({ error: 'requestId is required.' });
+
+    if (!token || !verifyDraftStatusToken(token, requestId)) {
+        return res.status(401).json({ error: 'Invalid or expired draft status token.' });
+    }
+    const status = getDraftStage(requestId);
+
+    if (status) return res.json(status);
+    const persistedStatus = await draftJobStore.getStatus(requestId);
+
+    if (!persistedStatus) return res.status(404).json({ error: 'request status not found.' });
+
+    return res.json(persistedStatus);
 };
