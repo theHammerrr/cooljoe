@@ -7,7 +7,7 @@ import { useCopilotMessages } from './useCopilotMessages';
 interface CopilotChatProps {
     onClose?: () => void;
     isEmbedded?: boolean;
-    onInjectSql?: (sql: string) => void;
+    onInjectSql?: (sql: string, prisma?: string) => void;
 }
 
 function ChatHeader({ isEmbedded, isRefreshing, onRefresh, onClose }: { isEmbedded?: boolean; isRefreshing: boolean; onRefresh: () => void; onClose?: () => void }) {

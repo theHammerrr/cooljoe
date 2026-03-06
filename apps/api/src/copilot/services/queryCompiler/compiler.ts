@@ -1,4 +1,4 @@
-import { SemanticQueryPlan, SelectSubtree, JoinSubtree, FilterSubtree } from './types';
+import { StructuredSemanticQueryPlan, SelectSubtree, JoinSubtree, FilterSubtree } from './types';
 
 // Helper to reliably double-quote Postgres identifiers (tables/columns)
 function q(identifier: string): string {
@@ -58,7 +58,29 @@ function compileFilters(filterNodes?: FilterSubtree[]): string {
     return ` WHERE ${conditions.join(' AND ')}`;
 }
 
-export function compileSemanticPlan(plan: SemanticQueryPlan): string {
+function ensureTablesCoveredByJoinScope(plan: StructuredSemanticQueryPlan, baseTable: string): void {
+    const scope = new Set<string>([baseTable]);
+    if (plan.joins) {
+        for (const join of plan.joins) {
+            scope.add(join.fromTable);
+            scope.add(join.toTable);
+        }
+    }
+
+    const referenced = new Set<string>();
+    for (const selectNode of plan.select) referenced.add(selectNode.table);
+    for (const filterNode of plan.filters || []) referenced.add(filterNode.table);
+    for (const groupNode of plan.groupBy || []) referenced.add(groupNode.table);
+    for (const orderNode of plan.orderBy || []) referenced.add(orderNode.table);
+
+    for (const table of referenced) {
+        if (!scope.has(table)) {
+            throw new Error(`Plan references table "${table}" without a FROM/JOIN path.`);
+        }
+    }
+}
+
+export function compileSemanticPlan(plan: StructuredSemanticQueryPlan): string {
     if (!plan.select || plan.select.length === 0) {
         throw new Error("Invalid plan: requires at least one select node");
     }
@@ -67,6 +89,7 @@ export function compileSemanticPlan(plan: SemanticQueryPlan): string {
     const baseTable = plan.joins && plan.joins.length > 0
         ? plan.joins[0].fromTable
         : plan.select[0].table;
+    ensureTablesCoveredByJoinScope(plan, baseTable);
 
     let sql = `SELECT ${compileSelect(plan.select)} \nFROM ${q(baseTable)}`;
 

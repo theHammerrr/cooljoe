@@ -3,7 +3,7 @@ import { API_BASE_URL } from './apiClient';
 
 interface DraftQueryParams {
     question: string;
-    preferred?: string;
+    preferred?: 'sql' | 'prisma';
     constraints?: string;
 }
 

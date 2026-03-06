@@ -1,5 +1,6 @@
 import { Parser } from 'node-sql-parser';
 import { normalizeIdentifier } from './draftSchemaTopology';
+import { AstStatement } from './sqlAstTypes';
 
 const parser = new Parser();
 
@@ -23,7 +24,7 @@ function extractColumnName(columnNode: unknown): string | null {
     return typeof value === 'string' ? value : null;
 }
 
-export function parseSqlAst(sql: string): { ast?: unknown; error?: string } {
+export function parseSqlAst(sql: string): { ast?: AstStatement | AstStatement[]; error?: string } {
     try {
         return { ast: parser.astify(sql, { database: 'Postgresql' }) };
     } catch (error: unknown) {

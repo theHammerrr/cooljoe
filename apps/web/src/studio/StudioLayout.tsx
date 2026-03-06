@@ -9,6 +9,7 @@ import { AllowlistManager } from './AllowlistManager';
 
 export function StudioLayout() {
     const [injectedSql, setInjectedSql] = useState<string>('');
+    const [injectedPrisma, setInjectedPrisma] = useState<string>('');
     const [showAnalytics, setShowAnalytics] = useState(false);
     const [showAllowlist, setShowAllowlist] = useState(false);
 
@@ -64,7 +65,8 @@ export function StudioLayout() {
                 <div className="flex-1 flex flex-col min-w-0 shadow-inner relative z-0">
                     <QueryWorkspace 
                         injectedSql={injectedSql} 
-                        onResetInjectedSql={() => setInjectedSql('')} 
+                        injectedPrisma={injectedPrisma}
+                        onResetInjected={() => { setInjectedSql(''); setInjectedPrisma(''); }} 
                     />
                 </div>
 
@@ -72,7 +74,7 @@ export function StudioLayout() {
                 <div className="w-[420px] shrink-0 border-l border-slate-200 bg-gray-50 flex flex-col shadow-[-4px_0_24px_-15px_rgba(0,0,0,0.1)] z-10 overflow-hidden">
                     <CopilotChat 
                         isEmbedded={true} 
-                        onInjectSql={(sql: string) => setInjectedSql(sql)} 
+                        onInjectSql={(sql: string, prisma?: string) => { setInjectedSql(sql); setInjectedPrisma(prisma || ''); }} 
                     />
                 </div>
             </div>

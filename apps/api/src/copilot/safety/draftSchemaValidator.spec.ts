@@ -29,7 +29,7 @@ describe('Draft Schema Validator', () => {
 
         const result = validateDraftSqlAgainstSchemaWithRequirements(sql, schema, 'nitzan');
         expect(result.valid).toBe(false);
-        expect(result.errors.some((error) => error.includes('Unknown table referenced by column "first_name": b'))).toBe(true);
+        expect(result.errors.some((error) => error.includes('not present in FROM/JOIN'))).toBe(true);
     });
 
     it('accepts query when alias is properly joined', () => {
@@ -43,5 +43,15 @@ describe('Draft Schema Validator', () => {
 
         const result = validateDraftSqlAgainstSchemaWithRequirements(sql, schema, 'nitzan');
         expect(result.valid).toBe(true);
+    });
+
+    it('rejects table-qualified columns when table is not joined', () => {
+        const sql = `
+            SELECT "nitzan"."employee"."person_id", "nitzan"."person"."first_name"
+            FROM "nitzan"."employee"
+        `;
+        const result = validateDraftSqlAgainstSchemaWithRequirements(sql, schema, 'nitzan');
+        expect(result.valid).toBe(false);
+        expect(result.errors.some((error) => error.includes('not present in FROM/JOIN'))).toBe(true);
     });
 });

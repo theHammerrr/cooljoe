@@ -10,7 +10,7 @@ interface ChatMessageProps {
     onResults: (rows: Record<string, unknown>[]) => void;
     onUpdateMessage: (id: string, partialMsg: Partial<CopilotMessage>) => void;
     isEmbedded?: boolean;
-    onInjectSql?: (sql: string) => void;
+    onInjectSql?: (sql: string, prisma?: string) => void;
     onRetryDraft?: (retry: NonNullable<CopilotMessage['retryDraft']>) => void;
 }
 

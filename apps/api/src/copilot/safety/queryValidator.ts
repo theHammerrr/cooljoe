@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { Parser } from 'node-sql-parser';
+import { AstSelectStatement, isAstSelectStatement, toAstStatementArray } from './sqlAstTypes';
 
 const parser = new Parser();
 
@@ -35,8 +35,8 @@ export function normalizeQuotedSchemaTableIdentifiers(sql: string): string {
     return sql.replace(/"([^"]+)\.([^"]+)"/g, '"$1"."$2"');
 }
 
-function collectTablesFromSelectNode(selectNode: any, out: Set<string>): void {
-    const fromClause = selectNode?.from;
+function collectTablesFromSelectNode(selectNode: AstSelectStatement, out: Set<string>): void {
+    const fromClause = selectNode.from;
     if (!Array.isArray(fromClause)) {
         return;
     }
@@ -52,11 +52,11 @@ function collectTablesFromSelectNode(selectNode: any, out: Set<string>): void {
     }
 }
 
-function extractTablesFromAst(astNodes: any[]): string[] {
+function extractTablesFromAst(astNodes: unknown[]): string[] {
     const tables = new Set<string>();
 
     for (const node of astNodes) {
-        if (node && typeof node === 'object' && node.type === 'select') {
+        if (isAstSelectStatement(node)) {
             collectTablesFromSelectNode(node, tables);
         }
     }
@@ -76,7 +76,7 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
         throw new SQLSyntaxError(parseMessage);
     }
 
-    const astArray = Array.isArray(ast) ? ast : [ast];
+    const astArray = toAstStatementArray(ast);
     const tableList = extractTablesFromAst(astArray);
 
     // 2. Allowlist Enforcement
@@ -92,8 +92,8 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
 
     // 1. Block non-SELECT statements and inject limits
     for (const node of astArray) {
-        if (node.type !== 'select') {
-            throw new DisallowedStatementError(node.type);
+        if (!isAstSelectStatement(node)) {
+            throw new DisallowedStatementError(typeof node.type === 'string' ? node.type : 'unknown');
         }
 
         // 3. Limit Injection Constraints
@@ -105,13 +105,13 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
             };
         } else {
             // If limit exists, cap it without exceeding maxLimit
-            const currentLimit = node.limit.value[0].value;
-            if (currentLimit > maxLimit) {
+            const currentLimit = node.limit.value[0]?.value;
+            if (typeof currentLimit === 'number' && currentLimit > maxLimit) {
                 node.limit.value[0].value = maxLimit;
             }
         }
     }
 
     // Stringify the modified AST back to safely constructed SQL
-    return parser.sqlify(astArray, { database: 'Postgresql' });
+    return parser.sqlify(ast, { database: 'Postgresql' });
 }

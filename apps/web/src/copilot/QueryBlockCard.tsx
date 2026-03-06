@@ -7,7 +7,7 @@ interface QueryBlockCardProps {
     isAllowing: boolean;
     onRun: () => void;
     onAccept: () => void;
-    onInjectSql?: (sql: string) => void;
+    onInjectSql?: (sql: string, prisma?: string) => void;
     onAllowAndRun: () => void;
 }
 

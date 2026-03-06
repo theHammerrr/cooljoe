@@ -73,4 +73,19 @@ describe('Query Compiler', () => {
         const result = compileSemanticPlan(plan);
         expect(result).toContain(`WHERE "public"."orders"."status" = 'ACTIVE' AND "public"."orders"."amount" > 100 AND "public"."orders"."type" IN ('SALE', 'REFUND')`);
     });
+
+    it('rejects plans that reference tables outside FROM/JOIN scope', () => {
+        const plan: SemanticQueryPlan = {
+            intent: 'Invalid join scope',
+            assumptions: [],
+            requires_raw_sql: false,
+            select: [
+                { table: 'nitzan.employee', column: 'person_id' },
+                { table: 'nitzan.person', column: 'first_name' }
+            ],
+            limit: 10
+        };
+
+        expect(() => compileSemanticPlan(plan)).toThrowError('without a FROM/JOIN path');
+    });
 });

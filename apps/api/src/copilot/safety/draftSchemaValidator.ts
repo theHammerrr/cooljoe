@@ -5,6 +5,7 @@ import {
     parseTopology,
     tableExistsInParsedTopology
 } from './draftSchemaTopology';
+import { isAstSelectStatement, toAstStatementArray } from './sqlAstTypes';
 
 export function tableExistsInSchema(schema: unknown, tableName: string): boolean {
     const topology = parseTopology(schema);
@@ -31,23 +32,17 @@ export function validateDraftSqlAgainstSchemaWithRequirements(
         return { valid: false, errors: [astResult.error] };
     }
 
-    const ast = astResult.ast;
-    const astArray = Array.isArray(ast) ? ast : [ast];
+    const astArray = toAstStatementArray(astResult.ast);
     const errors = new Set<string>();
 
     for (const statement of astArray) {
-        if (typeof statement !== 'object' || statement === null) {
-            continue;
-        }
-
-        const statementType = Reflect.get(statement, 'type');
-        if (statementType !== 'select') {
+        if (!isAstSelectStatement(statement)) {
             continue;
         }
 
         const queryTables = new Set<string>();
         const aliasToTable = new Map<string, string>();
-        addTablesFromFromClause(Reflect.get(statement, 'from'), queryTables, aliasToTable);
+        addTablesFromFromClause(statement.from, queryTables, aliasToTable);
         const normalizedRequiredSchema = requiredSchema ? normalizeIdentifier(requiredSchema) : '';
 
         for (const table of queryTables) {
@@ -77,6 +72,17 @@ export function validateDraftSqlAgainstSchemaWithRequirements(
             const tableRef = columnRef.table ? normalizeIdentifier(columnRef.table) : '';
             if (tableRef) {
                 const resolvedTable = aliasToTable.get(tableRef) || tableRef;
+                const inQueryScope = queryTables.has(resolvedTable) || Array.from(queryTables).some((table) => {
+                    const tableParts = table.split('.');
+                    const resolvedParts = resolvedTable.split('.');
+                    const tableBare = tableParts[tableParts.length - 1];
+                    const resolvedBare = resolvedParts[resolvedParts.length - 1];
+                    return tableBare === resolvedBare;
+                });
+                if (!inQueryScope) {
+                    errors.add(`Table "${resolvedTable}" is referenced by column "${columnRef.column}" but is not present in FROM/JOIN.`);
+                    continue;
+                }
                 const tableColumns = schemaColumnsByTable.get(resolvedTable);
                 if (!tableColumns) {
                     errors.add(`Unknown table referenced by column "${columnRef.column}": ${resolvedTable}`);

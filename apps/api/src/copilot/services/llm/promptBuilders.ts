@@ -6,9 +6,11 @@ Rules:
 2. The schema topology context includes Primary Keys (isPrimary) and Foreign Keys (foreignKeyTarget). You MUST use these to define precise \`joins\` if crossing tables.
 3. If Context includes "joinGraph", use it as the definitive source of truth for join paths.
 4. If Context includes "deterministicCandidate", use it as a hint and possible starting point, not a constraint. Prefer its join path only when it fully matches requested entities/columns/filters. Otherwise regenerate from graph context.
-5. Never copy deterministicCandidate SQL verbatim. Always output JSON plan objects only.
-6. Every element in "select", "joins", "filters", "groupBy", and "orderBy" MUST be an object. Never output string shorthand like "table.column".
-7. Output strict JSON matching this structure:
+5. If Context includes "fullSchemaContext", use its rich column type data (e.g., enums, relations) exclusively to resolve type-mismatch or structural validation errors.
+6. "preferredMode" controls downstream rendering target (SQL or Prisma), but your output MUST stay language-neutral structured JSON plan.
+7. Never copy deterministicCandidate SQL verbatim. Always output JSON plan objects only.
+8. Every element in "select", "joins", "filters", "groupBy", and "orderBy" MUST be an object. Never output string shorthand like "table.column".
+9. Output strict JSON matching this structure:
 
 {
   "intent": "Short summary of what the query does",

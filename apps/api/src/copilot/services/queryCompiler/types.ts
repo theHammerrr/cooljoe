@@ -33,12 +33,9 @@ export const OrderBySubtreeSchema = z.object({
     dir: z.enum(['asc', 'desc']).default('asc')
 });
 
-export const SemanticQueryPlanSchema = z.object({
+const SemanticPlanBaseSchema = z.object({
     intent: z.string().default(''),
     assumptions: z.array(z.string()).default([]),
-    requires_raw_sql: z.boolean().default(false),
-    raw_sql_fallback: z.string().optional(),
-    select: z.array(SelectSubtreeSchema),
     joins: z.array(JoinSubtreeSchema).optional(),
     filters: z.array(FilterSubtreeSchema).optional(),
     groupBy: z.array(GroupBySubtreeSchema).optional(),
@@ -47,7 +44,27 @@ export const SemanticQueryPlanSchema = z.object({
     riskFlags: z.array(z.string()).optional()
 });
 
+export const StructuredSemanticQueryPlanSchema = SemanticPlanBaseSchema.extend({
+    requires_raw_sql: z.literal(false).default(false),
+    raw_sql_fallback: z.string().optional(),
+    select: z.array(SelectSubtreeSchema).min(1)
+});
+
+export const RawSqlSemanticQueryPlanSchema = SemanticPlanBaseSchema.extend({
+    requires_raw_sql: z.literal(true),
+    raw_sql_fallback: z.string().min(1),
+    select: z.array(SelectSubtreeSchema).optional().default([])
+});
+
+export const SemanticQueryPlanSchema = z.union([
+    StructuredSemanticQueryPlanSchema,
+    RawSqlSemanticQueryPlanSchema
+]);
+
+export type StructuredSemanticQueryPlan = z.infer<typeof StructuredSemanticQueryPlanSchema>;
+export type RawSqlSemanticQueryPlan = z.infer<typeof RawSqlSemanticQueryPlanSchema>;
 export type SemanticQueryPlan = z.infer<typeof SemanticQueryPlanSchema>;
 export type SelectSubtree = z.infer<typeof SelectSubtreeSchema>;
 export type JoinSubtree = z.infer<typeof JoinSubtreeSchema>;
-export type FilterSubtree = z.infer<typeof Fi
+export type FilterSubtree = z.infer<typeof FilterSubtreeSchema>;
+export type OrderBySubtree = z.infer<typeof OrderBySubtreeSchema>;

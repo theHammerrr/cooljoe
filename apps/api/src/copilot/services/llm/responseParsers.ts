@@ -30,6 +30,7 @@ function parseSelectString(value: string): { table: string; column: string } | n
 }
 
 function normalizeDraftPlanShape(parsed: unknown): unknown {
+    console.log('[responseParsers] parsed:', parsed);
     if (typeof parsed !== 'object' || parsed === null) {
         return parsed;
     }
@@ -45,6 +46,29 @@ function normalizeDraftPlanShape(parsed: unknown): unknown {
             return parsedSelect || item;
         });
     }
+
+    const legacySql = Reflect.get(copy, 'sql');
+    const rawSqlFallback = Reflect.get(copy, 'raw_sql_fallback');
+    const requiresRawSql = Reflect.get(copy, 'requires_raw_sql');
+
+    // Bridge legacy model output (`sql`) into the raw fallback contract.
+    if (typeof legacySql === 'string' && legacySql.trim() && typeof rawSqlFallback !== 'string') {
+        copy.raw_sql_fallback = legacySql;
+    }
+
+    // If we have fallback SQL but no explicit mode, force raw mode.
+    if (typeof Reflect.get(copy, 'raw_sql_fallback') === 'string' && typeof requiresRawSql !== 'boolean') {
+        copy.requires_raw_sql = true;
+    }
+
+    // If select is missing entirely and fallback SQL exists, keep plan parseable as raw mode.
+    const normalizedSelect = Reflect.get(copy, 'select');
+    if (!Array.isArray(normalizedSelect) && typeof Reflect.get(copy, 'raw_sql_fallback') === 'string') {
+        copy.select = [];
+        copy.requires_raw_sql = true;
+    }
+
+    console.log('[responseParsers] normalized:', copy);
 
     return copy;
 }
