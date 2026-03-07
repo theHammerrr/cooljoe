@@ -6,6 +6,7 @@ import { createDraftJobId, CreateDraftJobCommandSchema, DraftQueryCommandSchema 
 import { issueDraftStatusToken, verifyDraftStatusToken } from '../../domain/draftQueryToken';
 import { finishDraftStage } from './stageTracker';
 import { toValidationIssues } from './draftQueryParsing';
+import { buildRuntimeErrorDraftResultPayload } from '../../application/draftJobResultPayload';
 
 export const issueDraftQueryToken = async (_req: Request, res: Response) => {
     const requestId = createDraftJobId();
@@ -47,7 +48,7 @@ export const createDraftJob = async (req: Request, res: Response) => {
         });
     } catch (error) {
         if (error instanceof DraftJobQueueFullError) {
-            await draftJobStore.recordResult(requestId, 503, { error: error.message });
+            await draftJobStore.recordResult(requestId, 503, buildRuntimeErrorDraftResultPayload(error.message));
             finishDraftStage(requestId, error.message);
 
             return res.status(503).json({ error: error.message });

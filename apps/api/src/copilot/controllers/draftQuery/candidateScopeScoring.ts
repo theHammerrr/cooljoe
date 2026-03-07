@@ -39,6 +39,11 @@ export function scoreColumns(row: TableCatalogRow, intentSketch: IntentSketch): 
             const reasons: string[] = [];
             let score = 0;
 
+            if (intentSketch.mentionedColumns.includes(normalizedColumn)) {
+                score += 6;
+                reasons.push('explicit column mention');
+            }
+
             if (intentSketch.explicitMeasure && measureMatches(intentSketch.explicitMeasure, normalizedColumn)) {
                 score += 5;
                 reasons.push('explicit measure match');
@@ -59,7 +64,7 @@ export function scoreColumns(row: TableCatalogRow, intentSketch: IntentSketch): 
                 reasons.push('dimension column match');
             }
 
-            if (/\b(name|title|status|type)\b/i.test(normalizedColumn)) {
+            if (/\b(name|title|status|type|description)\b/i.test(normalizedColumn)) {
                 score += 1;
                 reasons.push('presentation column');
             }

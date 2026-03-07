@@ -9,4 +9,6 @@ export interface DraftMessagesState {
     setMessages: (updater: (prev: CopilotMessage[]) => CopilotMessage[]) => void;
     setActiveDraftSession: (value: ActiveDraftSession | null) => void;
     handleDraftFailure: (question: string, intent: 'sql' | 'prisma', error: unknown) => void;
+    tryMarkDraftResultHandled: (requestId: string) => boolean;
+    clearHandledDraftResult: (requestId: string) => void;
 }

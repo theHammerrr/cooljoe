@@ -1,6 +1,7 @@
 import { API_BASE_URL } from './apiClient';
 import { getDraftJobFromPayload } from './draftJobMappers';
 import { isDraftJobBasePayload } from './draftJobPayload';
+import type { DraftJobPayload } from './draftJobPayloadTypes';
 
 interface CreateDraftJobParams {
     question: string;
@@ -27,7 +28,7 @@ export interface DraftJobResult {
     preferredMode: 'sql' | 'prisma';
     constraints?: string;
     resultStatus?: number;
-    resultPayload?: unknown;
+    resultPayload?: DraftJobPayload;
     leaseOwner?: string;
     leaseExpiresAt?: number;
     recoveryCount: number;

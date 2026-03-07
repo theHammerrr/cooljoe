@@ -38,8 +38,8 @@ export function startDraftStatusPolling(
 
                 return;
             }
-        } catch {
-            // no-op
+        } catch (error: unknown) {
+            console.error('Draft status polling failed.', { requestId, error });
         } finally {
             inFlight = false;
 

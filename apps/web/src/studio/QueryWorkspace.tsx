@@ -1,37 +1,37 @@
-import { useState } from 'react';
-import { ResultsTable } from '../copilot/ResultsTable';
+import { useRef, useState } from 'react';
 import { useRunQuery } from '../api/copilot/useRunQuery';
 import { useAllowTable } from '../api/copilot/useAllowTable';
-import { QueryWorkspaceApproval } from './QueryWorkspaceApproval';
+import { QueryWorkspaceContent } from './QueryWorkspaceContent';
 import { QueryWorkspaceHeader } from './QueryWorkspaceHeader';
-import { QueryWorkspaceEditor } from './QueryWorkspaceEditor';
-import { QueryWorkspaceEmptyState } from './QueryWorkspaceEmptyState';
 import { QueryWorkspaceFooter } from './QueryWorkspaceFooter';
-
+import { useWorkspaceSplitSizing } from './useWorkspaceSplitSizing';
 interface QueryWorkspaceProps {
     injectedSql: string;
     injectedPrisma?: string;
+    activeTab: 'sql' | 'prisma';
+    onTabChange: (tab: 'sql' | 'prisma') => void;
     onResetInjected: () => void;
 }
 
-export function QueryWorkspace({ injectedSql, injectedPrisma, onResetInjected }: QueryWorkspaceProps) {
+export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabChange, onResetInjected }: QueryWorkspaceProps) {
+    const splitContainerRef = useRef<HTMLDivElement | null>(null);
     const [sql, setSql] = useState<string>('SELECT * FROM public.users LIMIT 10;');
     const [prismaJs, setPrismaJs] = useState<string>('prisma.users.findMany({\n  take: 10\n})');
-    const [activeTab, setActiveTab] = useState<'sql' | 'prisma'>('sql');
     const [tableResults, setTableResults] = useState<Record<string, unknown>[] | null>(null);
     const [approvalTable, setApprovalTable] = useState<string | null>(null);
     const [runError, setRunError] = useState<string | null>(null);
     const { mutate: runQuery, isPending: isRunning } = useRunQuery();
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
-
+    const { editorHeight, startResize, resetEditorHeight, adjustEditorHeight } = useWorkspaceSplitSizing();
     const effectiveSql = injectedSql || sql;
     const effectivePrisma = injectedPrisma || prismaJs;
-
     const handleRun = () => {
-        if (!effectiveSql.trim()) return;
+        const queryToRun = activeTab === 'sql' ? effectiveSql : effectivePrisma;
+
+        if (!queryToRun.trim()) return;
         setApprovalTable(null);
         setRunError(null);
-        runQuery({ query: effectiveSql, mode: 'sql' }, {
+        runQuery({ query: queryToRun, mode: activeTab }, {
             onSuccess: (d) => {
                 if (d.success) {
                     setTableResults(d.rows);
@@ -51,47 +51,52 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, onResetInjected }:
         });
     };
 
+    const handleApprove = () => {
+        if (!approvalTable) return;
+
+        allowTable({ table: approvalTable }, {
+            onSuccess: () => {
+                setApprovalTable(null);
+                handleRun();
+            }
+        });
+    };
+
+    const handleEditorValueChange = (code: string) => {
+        if (activeTab === 'sql') {
+            if (injectedSql) onResetInjected();
+            setSql(code);
+
+            return;
+        }
+
+        if (injectedPrisma) onResetInjected();
+        setPrismaJs(code);
+    };
+
     return (
         <div className="flex flex-col h-full bg-[#0d1117] flex-1 min-w-0 text-slate-300 font-sans selection:bg-blue-500/30">
             <QueryWorkspaceHeader 
-                activeTab={activeTab} onTabChange={setActiveTab} onRun={handleRun} 
-                isRunning={isRunning} canRun={!!effectiveSql.trim()} 
+                activeTab={activeTab} onTabChange={onTabChange} onRun={handleRun} 
+                isRunning={isRunning} canRun={!!(activeTab === 'sql' ? effectiveSql.trim() : effectivePrisma.trim())} 
             />
-            <div className="flex-1 flex flex-col min-h-0 bg-[#0d1117] overflow-hidden">
-                <QueryWorkspaceEditor 
-                    value={activeTab === 'sql' ? effectiveSql : effectivePrisma}
-                    onValueChange={(code) => { 
-                        if (activeTab === 'sql') {
-                            if (injectedSql) onResetInjected();
-                            setSql(code);
-                        } else {
-                            if (injectedPrisma) onResetInjected();
-                            setPrismaJs(code);
-                        }
-                    }}
+            <div ref={splitContainerRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                <QueryWorkspaceContent
                     activeTab={activeTab}
+                    approvalTable={approvalTable}
+                    editorHeight={editorHeight}
+                    effectivePrisma={effectivePrisma}
+                    effectiveSql={effectiveSql}
+                    isAllowing={isAllowing}
+                    onAdjustEditorHeight={adjustEditorHeight}
+                    onApprove={handleApprove}
+                    onClearResults={() => setTableResults(null)}
+                    onEditorValueChange={handleEditorValueChange}
+                    onResizeEditor={(event) => startResize(event, splitContainerRef.current)}
+                    onResetEditorHeight={resetEditorHeight}
+                    runError={runError}
+                    tableResults={tableResults}
                 />
-                <div className="flex-[0.55] bg-[#0d1117] overflow-hidden flex flex-col relative">
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-500/20 to-transparent"></div>
-                    <div className="flex-1 overflow-y-auto p-6 flex flex-col">
-                        {approvalTable ? (
-                            <div className="my-auto animate-in fade-in zoom-in-95 duration-700">
-                                <QueryWorkspaceApproval 
-                                    approvalTable={approvalTable} isAllowing={isAllowing} 
-                                    onApprove={() => allowTable({ table: approvalTable }, { onSuccess: () => { setApprovalTable(null); handleRun(); } })} 
-                                />
-                            </div>
-                        ) : tableResults ? (
-                            <ResultsTable tableResults={tableResults} onClear={() => setTableResults(null)} />
-                        ) : runError ? (
-                            <div className="my-auto border border-red-500/40 bg-red-950/30 text-red-200 rounded-lg px-4 py-3 text-sm">
-                                {runError}
-                            </div>
-                        ) : (
-                            <QueryWorkspaceEmptyState activeTab={activeTab} />
-                        )}
-                    </div>
-                </div>
             </div>
             <QueryWorkspaceFooter />
         </div>

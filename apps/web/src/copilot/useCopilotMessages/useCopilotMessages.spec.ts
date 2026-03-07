@@ -3,17 +3,18 @@
  */
 
 import React from 'react';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCopilotMessages } from './useCopilotMessages';
+import { DraftQueryApiError } from '../../api/copilot/useDraftQuery';
 
 const mocks = vi.hoisted(() => ({
     createDraftJob: vi.fn(),
     cancelDraftJob: vi.fn(),
     getDraftJob: vi.fn(),
     subscribeToDraftStatus: vi.fn(),
-    mutate: vi.fn()
+    sendChat: vi.fn()
 }));
 
 vi.mock('../../api/copilot/useDraftQuery', () => ({
@@ -28,7 +29,7 @@ vi.mock('../../api/copilot/useDraftQuery', () => ({
 
 vi.mock('../../api/copilot/useChat', () => ({
     useChat: () => ({
-        mutate: mocks.mutate,
+        sendChat: mocks.sendChat,
         isPending: false
     })
 }));
@@ -38,7 +39,7 @@ vi.mock('../draftStatus', () => ({
 }));
 
 function HookHarness() {
-    const { messages, draftStatusText, isDrafting, cancelCurrentDraft, tableResults } = useCopilotMessages();
+    const { messages, draftStatusText, isDrafting, cancelCurrentDraft, tableResults, runDraft } = useCopilotMessages();
 
     return React.createElement(
         'div',
@@ -47,6 +48,7 @@ function HookHarness() {
         React.createElement('div', { 'data-testid': 'is-drafting' }, String(isDrafting)),
         React.createElement('div', { 'data-testid': 'table-results-count' }, String(tableResults?.length ?? 0)),
         React.createElement('button', { type: 'button', onClick: () => void cancelCurrentDraft() }, 'Cancel'),
+        React.createElement('button', { type: 'button', onClick: () => runDraft('Retryable draft', 'sql', 'retry constraints') }, 'RunDraft'),
         ...messages.map((message) =>
             React.createElement('div', { key: message.id, 'data-testid': `message-${message.role}` }, message.text)
         )
@@ -135,9 +137,12 @@ describe('useCopilotMessages reload recovery', () => {
             createdAt: Date.now(),
             resultStatus: 200,
             resultPayload: {
-                intent: 'sql',
-                sql: 'select * from customers',
-                riskFlags: []
+                kind: 'query',
+                query: {
+                    intent: 'sql',
+                    sql: 'select * from customers',
+                    riskFlags: []
+                }
             }
         });
 
@@ -151,5 +156,108 @@ describe('useCopilotMessages reload recovery', () => {
         expect(screen.getByText('Show me top customers')).toBeInTheDocument();
         expect(window.localStorage.getItem('cooljoe.activeDraftSession')).toBeNull();
         expect(screen.getByTestId('is-drafting')).toHaveTextContent('false');
+    });
+
+    it('removes stale retry failure messages before a successful retry result is appended', async () => {
+        const initialError = new DraftQueryApiError('Failed to draft query');
+
+        initialError.issues = ['Plan referenced column "nitzan.job.description" outside the narrowed candidate column scope.'];
+
+        mocks.createDraftJob.mockRejectedValueOnce(initialError);
+        mocks.createDraftJob.mockResolvedValueOnce({
+            requestId: 'draft_success',
+            statusToken: 'token_success',
+            expiresAt: Date.now() + 60_000
+        });
+        mocks.getDraftJob.mockResolvedValue({
+            requestId: 'draft_success',
+            status: 'completed',
+            stage: 'completed',
+            done: true,
+            updatedAt: Date.now(),
+            question: 'Retryable draft',
+            preferredMode: 'sql',
+            recoveryCount: 0,
+            createdAt: Date.now(),
+            resultStatus: 200,
+            resultPayload: {
+                kind: 'query',
+                query: {
+                    intent: 'sql',
+                    sql: 'select name from employee',
+                    riskFlags: []
+                }
+            }
+        });
+        mocks.subscribeToDraftStatus.mockImplementation((_requestId, _statusToken, _setStatusText, onDone) => {
+            void onDone();
+
+            return () => undefined;
+        });
+
+        render(React.createElement(HookHarness));
+
+        await act(async () => {
+            screen.getByText('RunDraft').click();
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText(/couldn't generate a query/i)).toBeInTheDocument();
+        });
+
+        await act(async () => {
+            screen.getByText('RunDraft').click();
+        });
+
+        await waitFor(() => {
+            expect(screen.getByText("Here's the dataset you requested:")).toBeInTheDocument();
+        });
+
+        expect(screen.queryByText(/couldn't generate a query/i)).not.toBeInTheDocument();
+    });
+
+    it('ignores duplicate completion callbacks for the same draft request', async () => {
+        mocks.createDraftJob.mockResolvedValueOnce({
+            requestId: 'draft_dupe',
+            statusToken: 'token_dupe',
+            expiresAt: Date.now() + 60_000
+        });
+        mocks.getDraftJob.mockResolvedValue({
+            requestId: 'draft_dupe',
+            status: 'completed',
+            stage: 'completed',
+            done: true,
+            updatedAt: Date.now(),
+            question: 'Retryable draft',
+            preferredMode: 'sql',
+            recoveryCount: 0,
+            createdAt: Date.now(),
+            resultStatus: 200,
+            resultPayload: {
+                kind: 'query',
+                query: {
+                    intent: 'sql',
+                    sql: 'select employee_name from employee',
+                    riskFlags: []
+                }
+            }
+        });
+        mocks.subscribeToDraftStatus.mockImplementation((_requestId, _statusToken, _setStatusText, onDone) => {
+            void onDone();
+            void onDone();
+
+            return () => undefined;
+        });
+
+        render(React.createElement(HookHarness));
+
+        await act(async () => {
+            screen.getByText('RunDraft').click();
+        });
+
+        await waitFor(() => {
+            expect(screen.getAllByText("Here's the dataset you requested:")).toHaveLength(1);
+        });
+        expect(mocks.getDraftJob).toHaveBeenCalledTimes(1);
     });
 });

@@ -1,1 +1,1 @@
-export * from './CopilotChatForm';
+export * from './CopilotChatForm'

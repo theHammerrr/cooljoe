@@ -1,36 +1,32 @@
-import { useMutation } from '@tanstack/react-query';
-import { API_BASE_URL } from './apiClient';
+import { useCallback, useState } from 'react';
+import { fetchChat, streamChat } from './useChatClient';
+import type { ChatParams, SendChatOptions } from './useChat.types';
 
-interface ChatParams {
-    prompt: string;
-    context?: unknown;
-}
+export type { ChatResponse } from './useChat.types';
 
-export interface ChatResponse {
-    success: boolean;
-    message: string;
-    suggestedDraft?: {
-        question: string;
-        mode: 'sql' | 'prisma';
-        reason?: string;
-    } | null;
-}
+export function useChat() {
+    const [isPending, setIsPending] = useState(false);
 
-export const useChat = () => {
-    return useMutation({
-        mutationFn: async (params: ChatParams): Promise<ChatResponse> => {
-            const response = await fetch(`${API_BASE_URL}/api/copilot/chat`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(params)
-            });
+    const sendChat = useCallback(async (params: ChatParams, options: SendChatOptions) => {
+        setIsPending(true);
 
-            if (!response.ok) {
-                const err = await response.json().catch(() => ({}));
-                throw new Error(err.error || "Failed to chat with AI");
+        try {
+            await streamChat(params, options);
+        } catch (error) {
+            console.error('Streaming chat failed, falling back to non-streaming response.', error);
+
+            try {
+                const data = await fetchChat(params);
+                options.onChunk(data.message);
+                options.onSuccess({ message: data.message, suggestedDraft: data.suggestedDraft });
+            } catch (fallbackError) {
+                console.error('Fallback chat failed.', fallbackError);
+                options.onError();
             }
-
-            return response.json();
+        } finally {
+            setIsPending(false);
         }
-    });
-};
+    }, []);
+
+    return { sendChat, isPending };
+}

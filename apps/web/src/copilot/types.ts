@@ -62,6 +62,21 @@ export interface CopilotMessage {
         reason?: string;
         constraints?: string;
         ctaLabel?: string;
+        tooltip?: string;
+    };
+    suggestedInjection?: {
+        mode: 'sql' | 'prisma';
+        sql?: string;
+        prisma?: string;
+        reason?: string;
+        ctaLabel?: string;
+        tooltip?: string;
     };
     runError?: string;
+}
+
+export interface ChatNotice {
+    id: string;
+    tone: 'success' | 'error';
+    message: string;
 }

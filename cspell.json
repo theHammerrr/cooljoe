@@ -25,6 +25,7 @@
     "pgvector",
     "pkey",
     "pnpm",
+    "Renderable",
     "seperator",
     "spreadsheetml",
     "sqlify",

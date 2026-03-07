@@ -2,6 +2,8 @@ export interface SuggestedDraft {
     mode: 'sql' | 'prisma';
     question: string;
     reason: string;
+    constraints?: string;
+    ctaLabel?: string;
 }
 
 const retrievalSignals = [

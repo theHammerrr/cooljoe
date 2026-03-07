@@ -36,7 +36,7 @@ export function ResultsTable({ tableResults, onClear }: ResultsTableProps) {
     }
 
     return (
-        <div className="bg-[#161b22]/80 border border-white/5 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] bg-[#161b22]/80 border border-white/5 rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.5)] animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="flex justify-between items-center px-6 py-4 border-b border-white/5 bg-[#1c2128]/50 backdrop-blur-sm">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 px-2.5 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
@@ -66,17 +66,17 @@ export function ResultsTable({ tableResults, onClear }: ResultsTableProps) {
                     </button>
                 </div>
             </div>
-            <div className="overflow-x-auto selection:bg-emerald-500/20">
+            <div className="min-h-0 overflow-auto selection:bg-emerald-500/20 [&::-webkit-scrollbar]:h-2.5 [&::-webkit-scrollbar]:w-2.5 [&::-webkit-scrollbar-track]:bg-[#0f141a] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-700/80 hover:[&::-webkit-scrollbar-thumb]:bg-slate-500">
                 <table className="w-full text-left text-[11px] text-slate-400 border-collapse">
                     <thead>
                         <tr className="bg-black/20">
                             {Object.keys(tableResults[0]).map(k => (
-                                <th key={k} className="px-6 py-4 border-b border-white/5 font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{k}</th>
+                                <th key={k} className="sticky top-0 z-10 bg-[#11161d] px-6 py-4 border-b border-white/5 font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">{k}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                        {tableResults.slice(0, 10).map((row, i) => (
+                        {tableResults.map((row, i) => (
                             <tr key={i} className="hover:bg-white/5 transition-all duration-300 group">
                                 {Object.values(row).map((val, j) => (
                                     <td key={j} className="px-6 py-4 truncate max-w-[240px] text-slate-400 group-hover:text-slate-100 transition-colors font-mono">
@@ -88,10 +88,10 @@ export function ResultsTable({ tableResults, onClear }: ResultsTableProps) {
                     </tbody>
                 </table>
             </div>
-            {tableResults.length > 10 && (
+            {tableResults.length > 0 && (
                 <div className="bg-black/10 px-6 py-3 border-t border-white/5 flex justify-center">
                     <span className="text-slate-600 text-[9px] font-black uppercase tracking-[0.2em]">
-                        Displaying first 10 of {tableResults.length} records
+                        {tableResults.length} records
                     </span>
                 </div>
             )}

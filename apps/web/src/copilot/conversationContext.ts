@@ -1,4 +1,5 @@
 import type { CopilotMessage } from './types';
+import { buildConversationMemory } from './conversationMemory';
 
 interface ConversationTurn {
     role: 'user' | 'assistant';
@@ -9,7 +10,12 @@ const MAX_RECENT_TURNS = 6;
 const MAX_SUMMARY_TURNS = 6;
 const MAX_SUMMARY_CHARS = 900;
 
-export function buildConversationContext(messages: CopilotMessage[], nextUserText: string) {
+export function buildConversationContext(
+    messages: CopilotMessage[],
+    nextUserText: string,
+    topicId: string,
+    preferredMode: 'chat' | 'sql' | 'prisma' = 'chat'
+) {
     const turns = messages
         .filter((message) => message.role === 'user' || message.role === 'assistant')
         .map((message): ConversationTurn => ({ role: message.role, text: message.text.trim() }))
@@ -18,12 +24,14 @@ export function buildConversationContext(messages: CopilotMessage[], nextUserTex
     const olderTurns = turns.slice(0, Math.max(0, turns.length - MAX_RECENT_TURNS)).slice(-MAX_SUMMARY_TURNS);
 
     return {
+        topicId,
         recentTurns,
         conversationSummary: summarizeTurns(olderTurns),
+        conversationMemory: buildConversationMemory(messages, nextUserText, topicId, preferredMode),
         contextPolicy: {
-            strategy: 'focused_recent_turns',
+            strategy: 'focused_recent_turns_with_structured_memory',
             maxRecentTurns: MAX_RECENT_TURNS,
-            note: 'Older messages are summarized. Clear chat when switching topics.'
+            note: 'Recent turns are prioritized. Older context is summarized. Start a new topic when switching tasks.'
         }
     };
 }

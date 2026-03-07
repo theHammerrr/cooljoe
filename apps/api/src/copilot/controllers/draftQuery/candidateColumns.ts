@@ -6,12 +6,19 @@ const MAX_COLUMNS_PER_TABLE = 8;
 
 export function buildCandidateColumnsByTable(
     rankedColumns: RankedCandidateColumn[],
-    narrowedCatalog: TableCatalogRow[]
+    narrowedCatalog: TableCatalogRow[],
+    explicitlyMentionedColumns: string[] = []
 ): Record<string, string[]> {
     const byTable: Record<string, string[]> = {};
+    const explicitColumnSet = new Set(explicitlyMentionedColumns.map(normalizeIdentifier));
 
     for (const row of narrowedCatalog) {
-        byTable[normalizeIdentifier(row.table)] = [];
+        const table = normalizeIdentifier(row.table);
+
+        byTable[table] = row.columns
+            .map(normalizeIdentifier)
+            .filter((column) => explicitColumnSet.has(column))
+            .slice(0, MAX_COLUMNS_PER_TABLE);
     }
 
     for (const candidate of rankedColumns) {

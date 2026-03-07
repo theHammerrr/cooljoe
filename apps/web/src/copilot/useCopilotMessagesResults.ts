@@ -2,7 +2,7 @@ import type { DraftJobResult } from '../api/copilot/useDraftQuery';
 import { getDraftJob } from '../api/copilot/useDraftQuery';
 import { clearActiveDraftSession } from './activeDraftSession';
 import type { DraftMessagesState } from './useCopilotMessagesDraftState';
-import { buildDraftResultMessages, toDraftQueryApiError } from './useCopilotMessagesHelpers';
+import { buildDraftResultMessages, hasRenderableDraftResult, toDraftQueryApiError } from './useCopilotMessagesHelpers';
 
 export async function loadDraftJobResult(
     state: DraftMessagesState,
@@ -12,21 +12,26 @@ export async function loadDraftJobResult(
     intent: 'sql' | 'prisma',
     preloadedJob?: DraftJobResult
 ) {
+    if (!state.tryMarkDraftResultHandled(requestId)) {
+        resetActiveDraftState(state);
+
+        return;
+    }
+
     try {
         const job = preloadedJob ?? await getDraftJob(requestId, statusToken);
-        let appliedResult = false;
+        const hasResult = hasRenderableDraftResult(job);
 
-        state.setMessages((prev) => {
-            const nextMessages = buildDraftResultMessages(prev, job, intent);
-            appliedResult = Boolean(nextMessages);
+        if (hasResult) {
+            state.setMessages((prev) => buildDraftResultMessages(prev, job, intent) || prev);
+        }
 
-            return nextMessages || prev;
-        });
-
-        if (!appliedResult) {
+        if (!hasResult) {
             state.handleDraftFailure(question, intent, toDraftQueryApiError(job.resultPayload));
         }
     } catch (error: unknown) {
+        console.error('Failed to load completed draft job result.', { requestId, error });
+        state.clearHandledDraftResult(requestId);
         state.handleDraftFailure(question, intent, error);
     } finally {
         resetActiveDraftState(state);

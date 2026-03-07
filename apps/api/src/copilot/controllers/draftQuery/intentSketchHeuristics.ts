@@ -1,5 +1,7 @@
 import { TableCatalogRow } from './models';
 import { IntentSketch } from './intentSketch';
+import { normalizeIdentifier } from './common';
+import { detectSemanticColumnMatches } from './semanticColumnMatches';
 
 const EXPLICIT_MEASURE_PATTERNS: Array<{ measure: string; pattern: RegExp }> = [
     { measure: 'revenue', pattern: /\b(revenue|sales amount|gmv|arr|mrr)\b/i },
@@ -20,6 +22,27 @@ export function detectMentionedEntities(question: string, tableCatalog: TableCat
 
             return [bareTable, singular, plural].some((candidate) => new RegExp(`\\b${candidate}\\b`, 'i').test(lowerQuestion));
         });
+}
+
+export function detectMentionedColumns(question: string, tableCatalog: TableCatalogRow[]): string[] {
+    const normalizedQuestion = normalizeQuestion(question);
+    const mentionedColumns = new Set<string>();
+
+    for (const row of tableCatalog) {
+        for (const column of row.columns) {
+            const normalizedColumn = normalizeIdentifier(column);
+
+            if (buildColumnMentionPattern(normalizedColumn).test(normalizedQuestion)) {
+                mentionedColumns.add(normalizedColumn);
+            }
+        }
+
+        for (const semanticColumn of detectSemanticColumnMatches(normalizedQuestion, row)) {
+            mentionedColumns.add(semanticColumn);
+        }
+    }
+
+    return Array.from(mentionedColumns);
 }
 
 export function detectExplicitMeasure(question: string): string | undefined {
@@ -88,4 +111,19 @@ export function buildClarificationQuestion(missing: string[], entities: string[]
     }
 
     return undefined;
+}
+
+function normalizeQuestion(question: string): string {
+    return question
+        .toLowerCase()
+        .replace(/'s\b/g, ' ')
+        .replace(/[^a-z0-9_]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
+
+function buildColumnMentionPattern(normalizedColumn: string): RegExp {
+    const escaped = normalizedColumn.replace(/_/g, ' ').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    return new RegExp(`\\b${escaped}\\b`, 'i');
 }

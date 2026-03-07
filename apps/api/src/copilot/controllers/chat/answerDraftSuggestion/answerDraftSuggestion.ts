@@ -1,19 +1,16 @@
-import type { CopilotMessage } from './types';
+import { SuggestedDraft } from '../intentRouter';
 
 const SQL_BLOCK_PATTERN = /```sql\s*([\s\S]*?)```/i;
 const PRISMA_BLOCK_PATTERN = /```(?:ts|typescript|js|javascript|prisma)?\s*([\s\S]*?findMany[\s\S]*?)```/i;
 
-export function buildAssistantDraftSuggestion(
-    question: string,
-    messageText: string
-): CopilotMessage['suggestedDraft'] | undefined {
+export function resolveSuggestedDraftFromAnswer(prompt: string, messageText: string): SuggestedDraft | null {
     const extractedPrisma = extractCodeBlock(messageText, PRISMA_BLOCK_PATTERN);
 
     if (extractedPrisma) {
         return {
-            question,
+            question: prompt,
             mode: 'prisma',
-            reason: 'Assistant answer includes a Prisma-shaped query. Use it as a drafting hint.',
+            reason: 'Assistant answer already includes a Prisma-shaped query. Reuse it as a drafting hint.',
             constraints: buildAnswerHintConstraints('prisma', messageText, extractedPrisma),
             ctaLabel: 'Create Draft From Answer'
         };
@@ -21,12 +18,12 @@ export function buildAssistantDraftSuggestion(
 
     const extractedSql = extractCodeBlock(messageText, SQL_BLOCK_PATTERN) || extractInlineSql(messageText);
 
-    if (!extractedSql) return undefined;
+    if (!extractedSql) return null;
 
     return {
-        question,
+        question: prompt,
         mode: 'sql',
-        reason: 'Assistant answer includes a SQL-shaped query. Use it as a drafting hint.',
+        reason: 'Assistant answer already includes a SQL-shaped query. Reuse it as a drafting hint.',
         constraints: buildAnswerHintConstraints('sql', messageText, extractedSql),
         ctaLabel: 'Create Draft From Answer'
     };

@@ -90,7 +90,7 @@ export async function runDraftJobCore(input: DraftJobCoreInput): Promise<DraftQu
                 error: 'Generated SQL failed schema validation.',
                 issues: result.validation.errors,
                 diagnostics: result.validation.diagnostics,
-                draft: result.draft
+                draft: result.draft ? buildCompletedDraftPayload(input.requestId, result.draft, result.sql) : undefined
             },
             result.validation.errors[0] || 'Generated SQL failed schema validation.'
         );

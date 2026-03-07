@@ -1,12 +1,33 @@
+import type { ChatNotice } from './types';
+
 interface ChatHeaderProps {
     isEmbedded?: boolean;
-    isRefreshing: boolean;
-    onRefresh: () => void;
     onClear: () => void;
+    onNewTopic: () => void;
     onClose?: () => void;
 }
 
-export function ChatHeader({ isEmbedded, isRefreshing, onRefresh, onClear, onClose }: ChatHeaderProps) {
+interface ChatNoticeBannerProps {
+    notice: ChatNotice;
+    onDismiss: () => void;
+}
+
+export function ChatNoticeBanner({ notice, onDismiss }: ChatNoticeBannerProps) {
+    const toneClasses = notice.tone === 'error'
+        ? 'bg-red-500/10 border-red-500/20 text-red-200'
+        : 'bg-emerald-500/10 border-emerald-500/20 text-emerald-200';
+
+    return (
+        <div className={`mx-4 mt-3 rounded-lg border px-3 py-2 text-xs flex items-center justify-between gap-3 ${toneClasses}`}>
+            <span>{notice.message}</span>
+            <button onClick={onDismiss} className="text-[10px] font-bold uppercase tracking-widest opacity-80 hover:opacity-100 transition-opacity">
+                Dismiss
+            </button>
+        </div>
+    );
+}
+
+export function ChatHeader({ isEmbedded, onClear, onNewTopic, onClose }: ChatHeaderProps) {
     return (
         <div className="bg-[#161b22] border-b border-white/5 px-4 py-2.5 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-2">
@@ -15,27 +36,23 @@ export function ChatHeader({ isEmbedded, isRefreshing, onRefresh, onClear, onClo
                     <h3 className="font-black text-[11px] text-slate-400 uppercase tracking-widest">
                         {isEmbedded ? 'AI Copilot' : 'DB Copilot'}
                     </h3>
-                    <span className="text-[9px] text-slate-600 font-medium">Focused context. Clear chat when switching topics.</span>
+                    <span className="text-[9px] text-slate-600 font-medium">Focused context with structured memory. Start a new topic when switching tasks.</span>
                 </div>
             </div>
             <div className="flex gap-1 items-center">
+                <button
+                    onClick={onNewTopic}
+                    className="text-slate-600 hover:text-slate-300 transition-colors p-1.5 hover:bg-white/5 rounded flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest"
+                    title="Start a New Topic"
+                >
+                    New Topic
+                </button>
                 <button
                     onClick={onClear}
                     className="text-slate-600 hover:text-slate-300 transition-colors p-1.5 hover:bg-white/5 rounded flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest"
                     title="Clear Copilot Chat"
                 >
                     Clear
-                </button>
-                <button
-                    onClick={onRefresh}
-                    disabled={isRefreshing}
-                    className="text-slate-600 hover:text-slate-300 transition-colors p-1.5 hover:bg-white/5 rounded disabled:opacity-40 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest"
-                    title="Sync Database Schema"
-                >
-                    <svg className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    {isRefreshing ? 'Syncing' : 'Sync'}
                 </button>
                 {onClose && (
                     <button onClick={onClose} className="text-slate-600 hover:text-slate-300 p-1.5 hover:bg-white/5 rounded transition-colors" title="Close">

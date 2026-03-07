@@ -3,6 +3,7 @@ import {
     buildClarificationQuestion,
     detectDimensions,
     detectExplicitMeasure,
+    detectMentionedColumns,
     detectMentionedEntities,
     detectRankingLimit,
     detectTimeGrain,
@@ -11,6 +12,7 @@ import {
 
 export interface IntentSketch {
     entities: string[];
+    mentionedColumns: string[];
     asksForCount: boolean;
     asksForTopN: boolean;
     asksForTimeBucket: boolean;
@@ -25,6 +27,7 @@ export interface IntentSketch {
 
 export function buildIntentSketch(question: string, tableCatalog: TableCatalogRow[]): IntentSketch {
     const entities = detectMentionedEntities(question, tableCatalog);
+    const mentionedColumns = detectMentionedColumns(question, tableCatalog);
     const asksForCount = /\b(count|how many|number of|total number of)\b/i.test(question);
     const asksForTopN = /\btop\s+\d+\b|\bhighest\b|\bmost\b|\bbest\b|\blargest\b/i.test(question);
     const asksForTimeBucket = /\bby month\b|\bmonthly\b|\bby day\b|\bdaily\b|\bby week\b|\bweekly\b|\bby year\b|\byearly\b/i.test(question);
@@ -49,6 +52,7 @@ export function buildIntentSketch(question: string, tableCatalog: TableCatalogRo
 
     return {
         entities,
+        mentionedColumns,
         asksForCount,
         asksForTopN,
         asksForTimeBucket,

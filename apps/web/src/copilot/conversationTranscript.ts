@@ -57,6 +57,7 @@ function isPersistedCopilotMessage(value: unknown): value is CopilotMessage {
     const mode = Reflect.get(value, 'mode');
     const retryDraft = Reflect.get(value, 'retryDraft');
     const suggestedDraft = Reflect.get(value, 'suggestedDraft');
+    const suggestedInjection = Reflect.get(value, 'suggestedInjection');
     const runError = Reflect.get(value, 'runError');
 
     return (
@@ -67,6 +68,7 @@ function isPersistedCopilotMessage(value: unknown): value is CopilotMessage {
         (mode === undefined || mode === 'chat' || mode === 'sql' || mode === 'prisma') &&
         (retryDraft === undefined || isRetryDraft(retryDraft)) &&
         (suggestedDraft === undefined || isSuggestedDraft(suggestedDraft)) &&
+        (suggestedInjection === undefined || isSuggestedInjection(suggestedInjection)) &&
         (runError === undefined || typeof runError === 'string')
     );
 }
@@ -87,6 +89,17 @@ function isSuggestedDraft(value: unknown): value is NonNullable<CopilotMessage['
         typeof value === 'object' &&
         typeof Reflect.get(value, 'question') === 'string' &&
         (Reflect.get(value, 'mode') === 'sql' || Reflect.get(value, 'mode') === 'prisma') &&
+        (Reflect.get(value, 'reason') === undefined || typeof Reflect.get(value, 'reason') === 'string')
+    );
+}
+
+function isSuggestedInjection(value: unknown): value is NonNullable<CopilotMessage['suggestedInjection']> {
+    return (
+        !!value &&
+        typeof value === 'object' &&
+        (Reflect.get(value, 'mode') === 'sql' || Reflect.get(value, 'mode') === 'prisma') &&
+        (Reflect.get(value, 'sql') === undefined || typeof Reflect.get(value, 'sql') === 'string') &&
+        (Reflect.get(value, 'prisma') === undefined || typeof Reflect.get(value, 'prisma') === 'string') &&
         (Reflect.get(value, 'reason') === undefined || typeof Reflect.get(value, 'reason') === 'string')
     );
 }

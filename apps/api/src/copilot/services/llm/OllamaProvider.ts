@@ -34,6 +34,33 @@ export class OllamaProvider implements AIProvider {
         return response.message.content;
     }
 
+    async streamChatResponse(
+        prompt: string,
+        context: unknown,
+        onChunk: (chunk: string) => void
+    ): Promise<string> {
+        const systemPrompt = buildChatSystemPrompt(context);
+        const stream = await this.ollama.chat({
+            model: this.model,
+            stream: true,
+            messages: [
+                { role: 'system', content: systemPrompt },
+                { role: 'user', content: prompt }
+            ]
+        });
+        let fullResponse = '';
+
+        for await (const part of stream) {
+            const chunk = part.message.content || '';
+
+            if (!chunk) continue;
+            fullResponse += chunk;
+            onChunk(chunk);
+        }
+
+        return fullResponse;
+    }
+
     async generateDraftQuery(question: string, context: Record<string, unknown>) {
         const systemPrompt = buildDraftSystemPrompt(context);
 
@@ -72,8 +99,6 @@ export class OllamaProvider implements AIProvider {
     }
 
     async generateEmbeddings(texts: string[]): Promise<number[][]> {
-        // Ollama embedding endpoint typically takes one text at a time via the JS SDK currently,
-        // or we can map over them.
         const embeddings = [];
 
         for (const text of texts) {

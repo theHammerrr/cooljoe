@@ -1,7 +1,9 @@
 import { DraftQueryApiError } from '../api/copilot/useDraftQuery';
 import type { DraftJobResult } from '../api/copilot/useDraftQuery';
+import { parseDraftJobPayload } from '../api/copilot/draftJobPayload';
 import { formatDraftFailureMessage } from './draftErrorMessages';
-import { isClarificationPayload, isQueryBlock, type CopilotMessage } from './types';
+import { createMessageId } from './messageIds';
+import type { CopilotMessage } from './types';
 
 export function buildRetryConstraints(issues: string[], previousDraftSql?: string): string {
     const parts = ['Previous draft failed schema validation.', ...issues.map((issue) => `- ${issue}`)];
@@ -11,29 +13,20 @@ export function buildRetryConstraints(issues: string[], previousDraftSql?: strin
     return parts.join('\n');
 }
 
-export function buildRecentTurns(messages: CopilotMessage[], nextUserText: string) {
-    const base = messages
-        .filter((message) => message.role === 'user' || message.role === 'assistant')
-        .slice(-5)
-        .map((message) => ({ role: message.role, text: message.text }));
-
-    return base.concat({ role: 'user', text: nextUserText });
-}
-
 export function toDraftQueryApiError(payload: unknown): DraftQueryApiError {
-    const source = payload && typeof payload === 'object' ? payload : {};
+    const parsedPayload = parseDraftJobPayload(payload);
     const error = new DraftQueryApiError(
-        typeof Reflect.get(source, 'error') === 'string'
-            ? String(Reflect.get(source, 'error'))
+        parsedPayload && parsedPayload.kind !== 'query' && parsedPayload.kind !== 'clarification'
+            ? parsedPayload.error
             : 'Failed to draft query'
     );
-    const issues = Reflect.get(source, 'issues');
 
-    if (Array.isArray(issues)) {
-        error.issues = issues.filter((item): item is string => typeof item === 'string');
+    if (parsedPayload?.kind === 'validation_error') {
+        error.issues = parsedPayload.issues;
+        error.draft = parsedPayload.draft;
+    } else if (parsedPayload?.kind === 'runtime_error') {
+        error.issues = [];
     }
-
-    error.draft = Reflect.get(source, 'draft');
 
     return error;
 }
@@ -47,7 +40,7 @@ export function appendRecoveredQuestionMessage(
 
     if (hasQuestionMessage) return prev;
 
-    return prev.concat({ id: `resume-user-${Date.now()}`, role: 'user', text: question, mode: intent });
+    return prev.concat({ id: createMessageId('resume-user'), role: 'user', text: question, mode: intent });
 }
 
 export function buildDraftFailureMessages(
@@ -57,7 +50,7 @@ export function buildDraftFailureMessages(
     error: unknown
 ): CopilotMessage[] {
     if (!(error instanceof DraftQueryApiError)) {
-        return prev.concat({ id: `err-${Date.now()}`, role: 'assistant', text: "Sorry, I couldn't generate a query." });
+        return prev.concat({ id: createMessageId('err'), role: 'assistant', text: "Sorry, I couldn't generate a query." });
     }
 
     const issues = error.issues || [];
@@ -67,7 +60,7 @@ export function buildDraftFailureMessages(
         : undefined;
 
     return prev.concat({
-        id: `err-${Date.now()}`,
+        id: createMessageId('err'),
         role: 'assistant',
         text: issues[0]
             ? `Sorry, I couldn't generate a valid query. ${formatDraftFailureMessage(issues[0])}`
@@ -82,30 +75,30 @@ export function buildDraftResultMessages(
     job: DraftJobResult,
     intent: 'sql' | 'prisma'
 ): CopilotMessage[] | null {
-    const queryBlock = job.resultPayload;
+    const resultPayload = job.resultPayload;
 
-    if (job.resultStatus === 200 && isQueryBlock(queryBlock)) {
+    if (resultPayload?.kind === 'query') {
         return prev.concat({
-            id: (Date.now() + 1).toString(),
+            id: createMessageId('draft'),
             role: 'assistant',
             text: "Here's the dataset you requested:",
-            queryBlock,
+            queryBlock: resultPayload.query,
             mode: intent
         });
     }
 
-    if (job.resultStatus === 200 && isClarificationPayload(queryBlock)) {
+    if (resultPayload?.kind === 'clarification') {
         return prev.concat({
-            id: `clarify-${Date.now()}`,
+            id: createMessageId('clarify'),
             role: 'assistant',
-            text: queryBlock.message,
+            text: resultPayload.clarification.message,
             mode: intent
         });
     }
 
     if (job.status === 'cancelled' || job.stage === 'cancelled') {
         return prev.concat({
-            id: `cancel-${Date.now()}`,
+            id: createMessageId('cancel'),
             role: 'assistant',
             text: 'Draft cancelled.',
             mode: intent
@@ -113,4 +106,12 @@ export function buildDraftResultMessages(
     }
 
     return null;
+}
+
+export function hasRenderableDraftResult(job: DraftJobResult): boolean {
+    if (job.status === 'cancelled' || job.stage === 'cancelled') {
+        return true;
+    }
+
+    return job.resultPayload?.kind === 'query' || job.resultPayload?.kind === 'clarification';
 }

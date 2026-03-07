@@ -60,7 +60,7 @@ export function buildRankedDraftContext(
     const narrowedCatalog = tableCatalog.filter((row) => focusTableSet.has(normalizeIdentifier(row.table)));
     const rankedColumns = narrowedCatalog.flatMap((row) => scoreColumns(row, intentSketch))
         .sort((left, right) => right.score - left.score || left.table.localeCompare(right.table) || left.column.localeCompare(right.column));
-    const candidateColumnsByTable = buildCandidateColumnsByTable(rankedColumns, narrowedCatalog);
+    const candidateColumnsByTable = buildCandidateColumnsByTable(rankedColumns, narrowedCatalog, intentSketch.mentionedColumns);
     const preferredJoinPaths = scoreJoinPaths(joinGraph, focusTableSet, rankedTables);
 
     return {

@@ -3,6 +3,7 @@ import { clearActiveDraftSession, saveActiveDraftSession, type ActiveDraftSessio
 import { toStatusText } from './draftStatus.shared';
 import type { DraftMessagesState } from './useCopilotMessagesDraftState';
 import { loadDraftJobResult, resetActiveDraftState } from './useCopilotMessagesResults';
+import { createMessageId } from './messageIds';
 
 export async function runDraftJob(
     state: DraftMessagesState,
@@ -29,9 +30,10 @@ export async function runDraftJob(
         startStatusPoll(draftToken.requestId, draftToken.statusToken, () => {
             void loadDraftJobResult(state, draftToken.requestId, draftToken.statusToken, question, intent);
         });
-    } catch {
+    } catch (error: unknown) {
+        console.error('Failed to start draft job.', { question, intent, error });
         resetActiveDraftState(state);
-        state.setMessages((prev) => prev.concat({ id: `err-${Date.now()}`, role: 'assistant', text: "Sorry, I couldn't generate a query." }));
+        state.setMessages((prev) => prev.concat({ id: createMessageId('err'), role: 'assistant', text: "Sorry, I couldn't generate a query." }));
     }
 }
 
@@ -48,7 +50,7 @@ export async function cancelActiveDraft(
         state.setActiveDraftSession(null);
         clearActiveDraftSession();
         state.setMessages((prev) => prev.concat({
-            id: `cancel-${Date.now()}`,
+            id: createMessageId('cancel'),
             role: 'assistant',
             text: 'Draft cancelled.',
             mode: activeDraftSession.intent
@@ -84,7 +86,8 @@ export async function resumeDraftSession(
         startStatusPoll(activeDraftSession.requestId, activeDraftSession.statusToken, () => {
             void loadDraftJobResult(state, activeDraftSession.requestId, activeDraftSession.statusToken, activeDraftSession.question, activeDraftSession.intent);
         });
-    } catch {
+    } catch (error: unknown) {
+        console.error('Failed to reconnect to draft job.', { requestId: activeDraftSession.requestId, error });
         resetActiveDraftState(state);
     }
 }

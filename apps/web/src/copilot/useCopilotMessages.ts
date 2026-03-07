@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '../api/copilot/useChat';
 import { type CopilotMessage } from './types';
-import { subscribeToDraftStatus } from './draftStatus';
 import { type ActiveDraftSession } from './activeDraftSession';
-import { saveConversationTranscript } from './conversationTranscript';
-import { loadWorkspaceSnapshot, saveWorkspaceSnapshot } from './workspaceSnapshot';
+import { loadWorkspaceSnapshot } from './workspaceSnapshot';
 import {
     buildDraftFailureMessages,
 } from './useCopilotMessagesHelpers';
+import { pruneStaleDraftFailureMessages } from './useCopilotMessagesRetryCleanup';
 import {
     cancelActiveDraft,
     resumeDraftSession,
@@ -15,39 +14,27 @@ import {
 } from './useCopilotMessagesDraft';
 import { loadInitialCopilotMessages } from './useCopilotMessagesInitialState';
 import { handleCopilotSend } from './useCopilotChatSend';
-import { clearPersistedCopilotState } from './clearCopilotState';
+import { loadConversationTopicId } from './conversationTopic';
+import { clearCopilotChatState, startFreshCopilotTopic } from './useCopilotMessagesTopic';
+import { useCopilotPersistence, useDraftStatusPolling } from './useCopilotMessagesEffects';
+import { useChatNoticeState, useDraftResultTracker } from './useCopilotMessagesSupport';
 
 export function useCopilotMessages() {
     const initialState = useMemo(() => loadInitialCopilotMessages(), []);
     const initialWorkspaceSnapshot = loadWorkspaceSnapshot();
+    const [topicId, setTopicId] = useState(() => loadConversationTopicId());
     const [messages, setMessages] = useState<CopilotMessage[]>(() => initialState.messages);
     const [tableResults, setTableResults] = useState<Record<string, unknown>[] | null>(initialWorkspaceSnapshot.tableResults);
     const [draftStatusText, setDraftStatusText] = useState<string>('');
     const [isDrafting, setIsDrafting] = useState(false);
     const [isCancellingDraft, setIsCancellingDraft] = useState(false);
-    const { mutate: sendChat, isPending: isChatting } = useChat();
-    const statusPollRef = useRef<(() => void) | null>(null);
+    const { notice, showNotice, dismissNotice } = useChatNoticeState();
+    const { sendChat, isPending: isChatting } = useChat();
     const activeDraftSessionRef = useRef<ActiveDraftSession | null>(null);
+    const { tryMarkDraftResultHandled, clearHandledDraftResult } = useDraftResultTracker();
+    const { stopStatusPoll, startStatusPoll } = useDraftStatusPolling(setDraftStatusText);
 
-    const stopStatusPoll = useCallback(() => {
-        if (statusPollRef.current !== null) {
-            statusPollRef.current();
-            statusPollRef.current = null;
-        }
-    }, []);
-
-    useEffect(() => () => stopStatusPoll(), [stopStatusPoll]);
-    useEffect(() => {
-        saveConversationTranscript(messages);
-    }, [messages]);
-    useEffect(() => {
-        saveWorkspaceSnapshot(tableResults);
-    }, [tableResults]);
-
-    const startStatusPoll = useCallback((requestId: string, statusToken: string, onDone: () => void) => {
-        stopStatusPoll();
-        statusPollRef.current = subscribeToDraftStatus(requestId, statusToken, setDraftStatusText, () => onDone());
-    }, [stopStatusPoll]);
+    useCopilotPersistence(messages, tableResults);
 
     const handleDraftFailure = useCallback((question: string, intent: 'sql' | 'prisma', error: unknown) => {
         setMessages((prev) => buildDraftFailureMessages(prev, question, intent, error));
@@ -62,9 +49,12 @@ export function useCopilotMessages() {
         setIsCancellingDraft,
         setMessages,
         setActiveDraftSession,
-        handleDraftFailure
-    }), [handleDraftFailure, setActiveDraftSession, stopStatusPoll]);
+        handleDraftFailure,
+        tryMarkDraftResultHandled,
+        clearHandledDraftResult
+    }), [clearHandledDraftResult, handleDraftFailure, setActiveDraftSession, stopStatusPoll, tryMarkDraftResultHandled]);
     const runDraft = useCallback((question: string, intent: 'sql' | 'prisma', constraints?: string) => {
+        setMessages((prev) => pruneStaleDraftFailureMessages(prev, question, intent));
         void runDraftJob(draftState, startStatusPoll, question, intent, constraints);
     }, [draftState, startStatusPoll]);
 
@@ -76,21 +66,12 @@ export function useCopilotMessages() {
         await cancelActiveDraft(draftState, activeDraftSession);
     }, [draftState, isCancellingDraft]);
     const clearChat = useCallback(async () => {
-        const activeDraftSession = activeDraftSessionRef.current;
+        await clearCopilotChatState({ ...draftState, setTopicId, setTableResults }, activeDraftSessionRef.current, isCancellingDraft);
+    }, [draftState, isCancellingDraft]);
 
-        if (activeDraftSession && !isCancellingDraft) {
-            await cancelActiveDraft(draftState, activeDraftSession);
-        }
-
-        stopStatusPoll();
-        activeDraftSessionRef.current = null;
-        clearPersistedCopilotState();
-        setMessages([]);
-        setTableResults(null);
-        setDraftStatusText('');
-        setIsDrafting(false);
-        setIsCancellingDraft(false);
-    }, [draftState, isCancellingDraft, stopStatusPoll]);
+    const startNewTopic = useCallback(async () => {
+        await startFreshCopilotTopic({ ...draftState, setTopicId, setTableResults }, activeDraftSessionRef.current, isCancellingDraft);
+    }, [draftState, isCancellingDraft]);
 
     useEffect(() => {
         const activeDraftSession = initialState.activeDraftSession;
@@ -101,8 +82,26 @@ export function useCopilotMessages() {
     }, [draftState, initialState, startStatusPoll]);
 
     const handleSend = useCallback((text: string, intent: 'chat' | 'sql' | 'prisma') => {
-        handleCopilotSend({ messages, setMessages, runDraft, sendChat }, text, intent);
-    }, [messages, runDraft, sendChat]);
+        handleCopilotSend({ messages, setMessages, runDraft, sendChat, topicId }, text, intent);
+    }, [messages, runDraft, sendChat, topicId]);
 
-    return { messages, setMessages, tableResults, setTableResults, runDraft, handleSend, cancelCurrentDraft, clearChat, isDrafting, isCancellingDraft, isChatting, draftStatusText };
+    return {
+        messages,
+        setMessages,
+        tableResults,
+        setTableResults,
+        runDraft,
+        handleSend,
+        cancelCurrentDraft,
+        clearChat,
+        startNewTopic,
+        isDrafting,
+        isCancellingDraft,
+        isChatting,
+        draftStatusText,
+        topicId,
+        notice,
+        showNotice,
+        dismissNotice
+    };
 }

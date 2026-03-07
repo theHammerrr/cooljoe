@@ -1,4 +1,5 @@
 import type { DraftJobResult } from './useDraftQuery';
+import { parseDraftJobPayload } from './draftJobPayload';
 
 export function getDraftJobFromPayload(payload: Record<string, unknown>): DraftJobResult {
     return {
@@ -14,7 +15,10 @@ export function getDraftJobFromPayload(payload: Record<string, unknown>): DraftJ
         preferredMode: String(Reflect.get(payload, 'preferredMode')) === 'prisma' ? 'prisma' : 'sql',
         constraints: typeof Reflect.get(payload, 'constraints') === 'string' ? String(Reflect.get(payload, 'constraints')) : undefined,
         resultStatus: typeof Reflect.get(payload, 'resultStatus') === 'number' ? Number(Reflect.get(payload, 'resultStatus')) : undefined,
-        resultPayload: Reflect.get(payload, 'resultPayload'),
+        resultPayload: parseDraftJobPayload(
+            Reflect.get(payload, 'resultPayload'),
+            typeof Reflect.get(payload, 'resultStatus') === 'number' ? Number(Reflect.get(payload, 'resultStatus')) : undefined
+        ),
         leaseOwner: typeof Reflect.get(payload, 'leaseOwner') === 'string' ? String(Reflect.get(payload, 'leaseOwner')) : undefined,
         leaseExpiresAt: typeof Reflect.get(payload, 'leaseExpiresAt') === 'number' ? Number(Reflect.get(payload, 'leaseExpiresAt')) : undefined,
         recoveryCount: Number(Reflect.get(payload, 'recoveryCount')),

@@ -1,18 +1,22 @@
 import type { CopilotMessage } from './types';
 import { buildConversationContext } from './conversationContext';
-import { buildAssistantDraftSuggestion } from './assistantDraftSuggestion';
+import { buildAssistantAnswerActions } from './assistantAnswerActions';
+import { buildConversationMemory, buildConversationMemoryConstraints } from './conversationMemory';
+import { createMessageId } from './messageIds';
 
 interface HandleSendInput {
     messages: CopilotMessage[];
     setMessages: (updater: (prev: CopilotMessage[]) => CopilotMessage[]) => void;
     runDraft: (question: string, intent: 'sql' | 'prisma', constraints?: string) => void;
+    topicId: string;
     sendChat: (
         input: { prompt: string; context?: unknown },
         options: {
-            onSuccess: (data: { message: string; suggestedDraft?: { question: string; mode: 'sql' | 'prisma'; reason?: string } | null }) => void;
+            onChunk: (chunk: string) => void;
+            onSuccess: (data: { message: string; suggestedDraft?: { question: string; mode: 'sql' | 'prisma'; reason?: string; constraints?: string; ctaLabel?: string } | null }) => void;
             onError: () => void;
         }
-    ) => void;
+    ) => void | Promise<void>;
 }
 
 export function handleCopilotSend(
@@ -20,24 +24,66 @@ export function handleCopilotSend(
     text: string,
     intent: 'chat' | 'sql' | 'prisma'
 ) {
-    input.setMessages((prev) => prev.concat({ id: Date.now().toString(), role: 'user', text, mode: intent }));
+    input.setMessages((prev) => prev.concat({ id: createMessageId('user'), role: 'user', text, mode: intent }));
 
     if (intent !== 'chat') {
-        input.runDraft(text, intent);
+        const memory = buildConversationMemory(input.messages, text, input.topicId, intent);
+        const memoryConstraints = buildConversationMemoryConstraints(memory);
+
+        input.runDraft(text, intent, memoryConstraints);
 
         return;
     }
 
-    const conversationContext = buildConversationContext(input.messages, text);
+    const conversationContext = buildConversationContext(input.messages, text, input.topicId, intent);
+    const assistantMessageId = createMessageId('assistant');
 
-    input.sendChat({ prompt: text, context: conversationContext }, {
-        onSuccess: (data) => input.setMessages((prev) => prev.concat({
-            id: (Date.now() + 1).toString(),
-            role: 'assistant',
-            text: data.message,
-            mode: 'chat',
-            suggestedDraft: buildAssistantDraftSuggestion(text, data.message) || data.suggestedDraft || undefined
-        })),
-        onError: () => input.setMessages((prev) => prev.concat({ id: `err-${Date.now()}`, role: 'assistant', text: 'Chat failed.' }))
+    input.setMessages((prev) => prev.concat({
+        id: assistantMessageId,
+        role: 'assistant',
+        text: '',
+        mode: 'chat'
+    }));
+
+    void input.sendChat({ prompt: text, context: conversationContext }, {
+        onChunk: (chunk) => {
+            input.setMessages((prev) => prev.map((message) => {
+                if (message.id !== assistantMessageId) {
+                    return message;
+                }
+
+                return {
+                    ...message,
+                    text: `${message.text}${chunk}`
+                };
+            }));
+        },
+        onSuccess: (data) => {
+            const answerActions = buildAssistantAnswerActions(text, data.message);
+
+            input.setMessages((prev) => prev.map((message) => {
+                if (message.id !== assistantMessageId) {
+                    return message;
+                }
+
+                return {
+                    ...message,
+                    ...answerActions,
+                    text: data.message,
+                    mode: 'chat',
+                    suggestedDraft: data.suggestedDraft || answerActions.suggestedDraft || undefined
+                };
+            }));
+        },
+        onError: () => input.setMessages((prev) => prev.map((message) => {
+            if (message.id !== assistantMessageId) {
+                return message;
+            }
+
+            return {
+                ...message,
+                text: message.text || 'Chat failed.'
+            };
+        }))
     });
 }
