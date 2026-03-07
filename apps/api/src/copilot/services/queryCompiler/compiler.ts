@@ -30,8 +30,8 @@ function ensureTablesCoveredByJoinScope(plan: StructuredSemanticQueryPlan, baseT
 function compileSelect(selectNodes: SelectSubtree[], resolve: (table: string, ref?: string, role?: string, alias?: string) => string): string {
     return selectNodes.map((node) => {
         const tableRef = resolve(node.table, node.tableRef, node.role, node.alias);
-        const expr = `${q(tableRef)}.${q(node.column)}`;
-        const aggExpr = node.agg ? `${node.agg.toUpperCase()}(${expr})` : expr;
+        const expr = renderColumnExpression(tableRef, node.column, node.timeGrain);
+        const aggExpr = node.agg ? `${node.agg.toUpperCase()}(${node.distinct ? 'DISTINCT ' : ''}${expr})` : expr;
 
         return node.alias ? `${aggExpr} AS ${q(node.alias)}` : aggExpr;
     }).join(', ');
@@ -66,11 +66,19 @@ export function compileSemanticPlan(plan: StructuredSemanticQueryPlan): string {
     sql += renderJoinClauses(refPlan, q);
     sql += compileFilters(plan.filters, resolve);
 
-    if (plan.groupBy?.length) sql += ` \nGROUP BY ${plan.groupBy.map((n) => `${q(resolve(n.table, n.tableRef, n.role))}.${q(n.column)}`).join(', ')}`;
+    if (plan.groupBy?.length) sql += ` \nGROUP BY ${plan.groupBy.map((n) => renderColumnExpression(resolve(n.table, n.tableRef, n.role), n.column, n.timeGrain)).join(', ')}`;
 
-    if (plan.orderBy?.length) sql += ` \nORDER BY ${plan.orderBy.map((n) => `${q(resolve(n.table, n.tableRef, n.role))}.${q(n.column)} ${n.dir.toUpperCase()}`).join(', ')}`;
+    if (plan.orderBy?.length) sql += ` \nORDER BY ${plan.orderBy.map((n) => `${renderColumnExpression(resolve(n.table, n.tableRef, n.role), n.column, n.timeGrain)} ${n.dir.toUpperCase()}`).join(', ')}`;
 
     if (plan.limit !== undefined) sql += ` \nLIMIT ${plan.limit}`;
 
     return `${sql};`;
+}
+
+function renderColumnExpression(tableRef: string, column: string, timeGrain?: 'day' | 'week' | 'month' | 'year'): string {
+    const qualifiedColumn = `${q(tableRef)}.${q(column)}`;
+
+    if (!timeGrain) return qualifiedColumn;
+
+    return `DATE_TRUNC('${timeGrain}', ${qualifiedColumn})`;
 }

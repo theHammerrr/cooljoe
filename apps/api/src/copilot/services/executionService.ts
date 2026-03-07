@@ -2,6 +2,11 @@ import { Pool } from 'pg';
 
 let pool: Pool | null = null;
 
+interface ExplainTargetQueryResult {
+    skipped: boolean;
+    runtimeMs?: number;
+}
+
 /**
  * Ensures the Target Database pool is instantiated lazily
  */
@@ -34,5 +39,21 @@ export const executeTargetQuery = async (safeSql: string) => {
         rows: result.rows,
         runtimeMs,
         rowCount: result.rowCount || 0
+    };
+};
+
+export const explainTargetQuery = async (safeSql: string): Promise<ExplainTargetQueryResult> => {
+    if (!process.env.TARGET_DATABASE_URL) {
+        return { skipped: true };
+    }
+
+    const targetPool = getTargetPool();
+    const startTime = Date.now();
+
+    await targetPool.query(`EXPLAIN ${safeSql}`);
+
+    return {
+        skipped: false,
+        runtimeMs: Date.now() - startTime
     };
 };

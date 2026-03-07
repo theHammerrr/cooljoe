@@ -1,4 +1,5 @@
 import { normalizeIdentifier, quoteIdentifier, quoteTableReference, tryGetTopology } from './common';
+import { DraftDiagnostic } from './diagnostics';
 import { JoinGraphEdge, JoinPathStep } from './models';
 
 function findShortestJoinPath(startTable: string, targetTable: string, edges: JoinGraphEdge[]): JoinPathStep[] {
@@ -45,7 +46,7 @@ function formatJoinPath(path: JoinPathStep[]): string {
 }
 
 export function buildValidationDrivenHints(
-    errors: string[],
+    diagnostics: DraftDiagnostic[],
     schema: unknown,
     joinGraph: JoinGraphEdge[],
     requiredSchema?: string
@@ -56,12 +57,10 @@ export function buildValidationDrivenHints(
     const required = requiredSchema ? normalizeIdentifier(requiredSchema) : '';
     const hints = new Set<string>();
 
-    for (const error of errors) {
-        const match = error.match(/^Unknown column "([^"]+)" in table "([^"]+)"$/);
-
-        if (!match) continue;
-        const columnName = normalizeIdentifier(match[1]);
-        const sourceTable = normalizeIdentifier(match[2]);
+    for (const diagnostic of diagnostics) {
+        if (diagnostic.code !== 'UNKNOWN_COLUMN' || !diagnostic.column || !diagnostic.table) continue;
+        const columnName = normalizeIdentifier(diagnostic.column);
+        const sourceTable = normalizeIdentifier(diagnostic.table);
         const targetTable = Object.entries(topology).find(([tableName, columns]) =>
             tableName !== sourceTable &&
             (!required || tableName.startsWith(`${required}.`)) &&

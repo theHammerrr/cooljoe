@@ -30,12 +30,12 @@ function applyEvent(event: DraftJobEvent): void {
     cleanupExpired();
     const prev = statusMap.get(event.requestId);
 
-    if (event.type === 'draft.completed' || event.type === 'draft.failed') {
+    if (event.type === 'draft.completed' || event.type === 'draft.failed' || event.type === 'draft.cancelled') {
         statusMap.set(event.requestId, {
             requestId: event.requestId,
-            stage: event.type === 'draft.failed' ? 'failed' : 'completed',
+            stage: event.type === 'draft.failed' ? 'failed' : event.type === 'draft.cancelled' ? 'cancelled' : 'completed',
             attempt: prev?.attempt,
-            detail: prev?.detail,
+            detail: event.detail ?? prev?.detail,
             done: true,
             error: event.error,
             updatedAt: event.occurredAt
@@ -83,6 +83,17 @@ export function finishDraftStage(requestId: string, error?: string): void {
         requestId,
         stage: error ? 'failed' : 'completed',
         error,
+        occurredAt: now()
+    });
+}
+
+export function cancelDraftStage(requestId: string, detail = 'Draft job cancelled.'): void {
+    draftJobEventBus.publish({
+        type: 'draft.cancelled',
+        requestId,
+        stage: 'cancelled',
+        detail,
+        error: detail,
         occurredAt: now()
     });
 }

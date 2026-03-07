@@ -29,10 +29,20 @@ function normalizeRecentTurns(context: Record<string, unknown>): ChatTurn[] {
         .slice(-6);
 }
 
+function normalizeConversationSummary(context: Record<string, unknown>): string | undefined {
+    const summary = Reflect.get(context, 'conversationSummary');
+
+    if (typeof summary !== 'string') return undefined;
+    const normalized = summary.trim();
+
+    return normalized ? normalized.slice(-1000) : undefined;
+}
+
 export async function buildChatContext(input: BuildChatContextInput): Promise<Record<string, unknown>> {
     console.time('chat-context-build');
     const clientContext = normalizeClientContext(input.context);
     const recentTurns = normalizeRecentTurns(clientContext);
+    const conversationSummary = normalizeConversationSummary(clientContext);
 
     const [schema, glossary, similarExamples] = await Promise.all([
         retrievalService.getLatestSchema(),
@@ -54,6 +64,7 @@ export async function buildChatContext(input: BuildChatContextInput): Promise<Re
         joinGraph,
         glossary,
         similarExamples,
-        recentTurns
+        recentTurns,
+        conversationSummary
     };
 }

@@ -19,11 +19,22 @@ describe('resolveDeterministicDraft', () => {
         const result = resolveDeterministicDraft('get all employees in nitzan schema', schema, 'nitzan');
         expect(result).not.toBeNull();
         expect(result?.confidence).toBeGreaterThanOrEqual(0.75);
+        expect(result?.draft.sql).toContain('LIMIT 50');
+        expect(result?.draft.sql).not.toContain('.*');
+        expect(result?.draft.expectedColumns.length).toBeGreaterThan(0);
     });
 
     it('returns lower confidence when name intent is not directly satisfiable from employee table', () => {
         const result = resolveDeterministicDraft('get all employees and their names', schema, 'nitzan');
         expect(result).not.toBeNull();
         expect(result?.confidence).toBeLessThan(0.75);
+    });
+
+    it('limits boss deterministic drafts for safety', () => {
+        const result = resolveDeterministicDraft('show employees and their bosses', schema, 'nitzan');
+
+        expect(result).not.toBeNull();
+        expect(result?.draft.sql).toContain('LIMIT 50');
+        expect(result?.draft.prisma).toContain('take: 50');
     });
 });

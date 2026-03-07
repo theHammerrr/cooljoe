@@ -34,16 +34,5 @@ export const baseConfig = tseslint.config(
     rules: {
       'max-lines': 'off'
     }
-  },
-  {
-    files: [
-      '**/DraftJobStore/draftJobStore.ts',
-      '**/AnalyticsModal.tsx',
-      '**/AllowlistManager.tsx',
-      '**/SchemaExplorer.tsx'
-    ],
-    rules: {
-      'max-lines': 'off'
-    }
   }
 );

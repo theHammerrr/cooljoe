@@ -79,4 +79,40 @@ describe('Draft Schema Validator', () => {
         const result = validateDraftSqlAgainstSchemaWithRequirements(sql, schema, 'nitzan');
         expect(result.valid).toBe(true);
     });
+
+    it('rejects non-select statements even when syntax is valid', () => {
+        const sql = 'UPDATE nitzan.employee SET job_name = \'boss\'';
+
+        const result = validateDraftSqlAgainstSchemaWithRequirements(sql, schema, 'nitzan');
+
+        expect(result.valid).toBe(false);
+        expect(result.diagnostics[0]?.code).toBe('NON_SELECT_QUERY');
+    });
+
+    it('rejects multiple statements', () => {
+        const sql = `
+            SELECT e.person_id
+            FROM nitzan.employee e;
+            SELECT p.first_name
+            FROM nitzan.person p;
+        `;
+
+        const result = validateDraftSqlAgainstSchemaWithRequirements(sql, schema, 'nitzan');
+
+        expect(result.valid).toBe(false);
+        expect(result.diagnostics[0]?.code).toBe('MULTI_STATEMENT_NOT_ALLOWED');
+    });
+
+    it('rejects ambiguous unqualified columns across joined tables', () => {
+        const sql = `
+            SELECT person_id
+            FROM nitzan.employee e
+            JOIN nitzan.person p ON e.person_id = p.id
+        `;
+
+        const result = validateDraftSqlAgainstSchemaWithRequirements(sql, schema, 'nitzan');
+
+        expect(result.valid).toBe(false);
+        expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'AMBIGUOUS_COLUMN')).toBe(true);
+    });
 });

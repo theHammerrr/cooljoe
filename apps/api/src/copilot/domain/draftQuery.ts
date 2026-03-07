@@ -12,8 +12,11 @@ export const DraftQueryCommandSchema = z.object({
 });
 
 export type DraftQueryCommand = z.infer<typeof DraftQueryCommandSchema>;
+export const CreateDraftJobCommandSchema = DraftQueryCommandSchema.omit({ requestId: true, statusToken: true });
+export type CreateDraftJobCommand = z.infer<typeof CreateDraftJobCommandSchema>;
 
 export type DraftJobStage =
+    | 'pending'
     | 'fetching_context'
     | 'building_context'
     | 'planning_with_llm'
@@ -21,10 +24,11 @@ export type DraftJobStage =
     | 'retrying_with_stricter_context'
     | 'finalizing_draft'
     | 'completed'
-    | 'failed';
+    | 'failed'
+    | 'cancelled';
 
 export interface DraftJobEvent {
-    type: 'draft.started' | 'draft.progressed' | 'draft.completed' | 'draft.failed';
+    type: 'draft.started' | 'draft.progressed' | 'draft.completed' | 'draft.failed' | 'draft.cancelled';
     requestId: string;
     stage: DraftJobStage;
     attempt?: number;

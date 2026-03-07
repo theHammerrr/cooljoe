@@ -1,119 +1,108 @@
-import { useEffect, useRef, useState } from 'react';
-import { DraftQueryApiError, issueDraftQueryToken, useDraftQuery } from '../api/copilot/useDraftQuery';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useChat } from '../api/copilot/useChat';
-import { isQueryBlock, type CopilotMessage } from './types';
-import { startDraftStatusPolling } from './draftStatus';
-import { formatDraftFailureMessage } from './draftErrorMessages';
-
-function buildRetryConstraints(issues: string[], previousDraftSql?: string): string {
-    const parts = ['Previous draft failed schema validation.', ...issues.map((issue) => `- ${issue}`)];
-
-    if (previousDraftSql) parts.push(`Previous invalid SQL:\n${previousDraftSql}`);
-
-    return parts.join('\n');
-}
-
-function buildRecentTurns(messages: CopilotMessage[], nextUserText: string) {
-    const base = messages
-        .filter((m) => m.role === 'user' || m.role === 'assistant')
-        .slice(-5)
-        .map((m) => ({ role: m.role, text: m.text }));
-
-    return base.concat({ role: 'user', text: nextUserText });
-}
+import { type CopilotMessage } from './types';
+import { subscribeToDraftStatus } from './draftStatus';
+import { type ActiveDraftSession } from './activeDraftSession';
+import { saveConversationTranscript } from './conversationTranscript';
+import { loadWorkspaceSnapshot, saveWorkspaceSnapshot } from './workspaceSnapshot';
+import {
+    buildDraftFailureMessages,
+} from './useCopilotMessagesHelpers';
+import {
+    cancelActiveDraft,
+    resumeDraftSession,
+    runDraftJob
+} from './useCopilotMessagesDraft';
+import { loadInitialCopilotMessages } from './useCopilotMessagesInitialState';
+import { handleCopilotSend } from './useCopilotChatSend';
+import { clearPersistedCopilotState } from './clearCopilotState';
 
 export function useCopilotMessages() {
-    const [messages, setMessages] = useState<CopilotMessage[]>([]);
-    const [tableResults, setTableResults] = useState<Record<string, unknown>[] | null>(null);
+    const initialState = useMemo(() => loadInitialCopilotMessages(), []);
+    const initialWorkspaceSnapshot = loadWorkspaceSnapshot();
+    const [messages, setMessages] = useState<CopilotMessage[]>(() => initialState.messages);
+    const [tableResults, setTableResults] = useState<Record<string, unknown>[] | null>(initialWorkspaceSnapshot.tableResults);
     const [draftStatusText, setDraftStatusText] = useState<string>('');
-    const { mutate: draftQuery, isPending: isDrafting } = useDraftQuery();
+    const [isDrafting, setIsDrafting] = useState(false);
+    const [isCancellingDraft, setIsCancellingDraft] = useState(false);
     const { mutate: sendChat, isPending: isChatting } = useChat();
     const statusPollRef = useRef<(() => void) | null>(null);
+    const activeDraftSessionRef = useRef<ActiveDraftSession | null>(null);
 
-    const stopStatusPoll = () => {
+    const stopStatusPoll = useCallback(() => {
         if (statusPollRef.current !== null) {
             statusPollRef.current();
             statusPollRef.current = null;
         }
-    };
+    }, []);
 
-    useEffect(() => () => stopStatusPoll(), []);
+    useEffect(() => () => stopStatusPoll(), [stopStatusPoll]);
+    useEffect(() => {
+        saveConversationTranscript(messages);
+    }, [messages]);
+    useEffect(() => {
+        saveWorkspaceSnapshot(tableResults);
+    }, [tableResults]);
 
-    const startStatusPoll = (requestId: string, statusToken: string) => {
+    const startStatusPoll = useCallback((requestId: string, statusToken: string, onDone: () => void) => {
         stopStatusPoll();
-        statusPollRef.current = startDraftStatusPolling(requestId, statusToken, setDraftStatusText);
-    };
+        statusPollRef.current = subscribeToDraftStatus(requestId, statusToken, setDraftStatusText, () => onDone());
+    }, [stopStatusPoll]);
 
-    const runDraft = async (question: string, intent: 'sql' | 'prisma', constraints?: string) => {
-        let draftToken: { requestId: string; statusToken: string };
+    const handleDraftFailure = useCallback((question: string, intent: 'sql' | 'prisma', error: unknown) => {
+        setMessages((prev) => buildDraftFailureMessages(prev, question, intent, error));
+    }, []);
+    const setActiveDraftSession = useCallback((value: ActiveDraftSession | null) => {
+        activeDraftSessionRef.current = value;
+    }, []);
+    const draftState = useMemo(() => ({
+        stopStatusPoll,
+        setDraftStatusText,
+        setIsDrafting,
+        setIsCancellingDraft,
+        setMessages,
+        setActiveDraftSession,
+        handleDraftFailure
+    }), [handleDraftFailure, setActiveDraftSession, stopStatusPoll]);
+    const runDraft = useCallback((question: string, intent: 'sql' | 'prisma', constraints?: string) => {
+        void runDraftJob(draftState, startStatusPoll, question, intent, constraints);
+    }, [draftState, startStatusPoll]);
 
-        try {
-            draftToken = await issueDraftQueryToken();
-        } catch {
-            setMessages((prev) => prev.concat({ id: `err-${Date.now()}`, role: 'assistant', text: "Sorry, I couldn't generate a query." }));
+    const cancelCurrentDraft = useCallback(async () => {
+        const activeDraftSession = activeDraftSessionRef.current;
 
-            return;
+        if (!activeDraftSession || isCancellingDraft) return;
+
+        await cancelActiveDraft(draftState, activeDraftSession);
+    }, [draftState, isCancellingDraft]);
+    const clearChat = useCallback(async () => {
+        const activeDraftSession = activeDraftSessionRef.current;
+
+        if (activeDraftSession && !isCancellingDraft) {
+            await cancelActiveDraft(draftState, activeDraftSession);
         }
 
-        startStatusPoll(draftToken.requestId, draftToken.statusToken);
-        draftQuery({ question, preferred: intent, constraints, requestId: draftToken.requestId, statusToken: draftToken.statusToken }, {
-            onSuccess: (data: unknown) => {
-                stopStatusPoll();
-                setDraftStatusText('');
-                setMessages((prev) => prev.concat({
-                    id: (Date.now() + 1).toString(),
-                    role: 'assistant',
-                    text: "Here's the dataset you requested:",
-                    queryBlock: isQueryBlock(data) ? data : undefined,
-                    mode: intent
-                }));
-            },
-            onError: (error: unknown) => {
-                stopStatusPoll();
-                setDraftStatusText('');
+        stopStatusPoll();
+        activeDraftSessionRef.current = null;
+        clearPersistedCopilotState();
+        setMessages([]);
+        setTableResults(null);
+        setDraftStatusText('');
+        setIsDrafting(false);
+        setIsCancellingDraft(false);
+    }, [draftState, isCancellingDraft, stopStatusPoll]);
 
-                if (!(error instanceof DraftQueryApiError)) {
-                    setMessages((prev) => prev.concat({ id: `err-${Date.now()}`, role: 'assistant', text: "Sorry, I couldn't generate a query." }));
+    useEffect(() => {
+        const activeDraftSession = initialState.activeDraftSession;
 
-                    return;
-                }
-                const issues = error.issues || [];
-                const draftObj = error.draft;
-                const previousDraftSql = typeof draftObj === 'object' && draftObj !== null && typeof Reflect.get(draftObj, 'sql') === 'string'
-                    ? String(Reflect.get(draftObj, 'sql'))
-                    : undefined;
-                setMessages((prev) => prev.concat({
-                    id: `err-${Date.now()}`,
-                    role: 'assistant',
-                    text: issues[0]
-                        ? `Sorry, I couldn't generate a valid query. ${formatDraftFailureMessage(issues[0])}`
-                        : "Sorry, I couldn't generate a query.",
-                    mode: intent,
-                    retryDraft: { question, mode: intent, constraints: buildRetryConstraints(issues, previousDraftSql) }
-                }));
-            }
-        });
-    };
+        if (!activeDraftSession) return;
 
-    const handleSend = (text: string, intent: 'chat' | 'sql' | 'prisma') => {
-        setMessages((prev) => prev.concat({ id: Date.now().toString(), role: 'user', text, mode: intent }));
+        void resumeDraftSession(draftState, activeDraftSession, startStatusPoll);
+    }, [draftState, initialState, startStatusPoll]);
 
-        if (intent !== 'chat') {
-            void runDraft(text, intent);
+    const handleSend = useCallback((text: string, intent: 'chat' | 'sql' | 'prisma') => {
+        handleCopilotSend({ messages, setMessages, runDraft, sendChat }, text, intent);
+    }, [messages, runDraft, sendChat]);
 
-            return;
-        }
-        sendChat({ prompt: text, context: { recentTurns: buildRecentTurns(messages, text) } }, {
-            onSuccess: (data) => setMessages((prev) => prev.concat({
-                id: (Date.now() + 1).toString(),
-                role: 'assistant',
-                text: data.message,
-                mode: 'chat',
-                suggestedDraft: data.suggestedDraft || undefined
-            })),
-            onError: () => setMessages((prev) => prev.concat({ id: `err-${Date.now()}`, role: 'assistant', text: 'Chat failed.' }))
-        });
-    };
-
-    return { messages, setMessages, tableResults, setTableResults, runDraft, handleSend, isDrafting, isChatting, draftStatusText };
+    return { messages, setMessages, tableResults, setTableResults, runDraft, handleSend, cancelCurrentDraft, clearChat, isDrafting, isCancellingDraft, isChatting, draftStatusText };
 }

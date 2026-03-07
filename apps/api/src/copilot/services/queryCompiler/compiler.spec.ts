@@ -54,6 +54,45 @@ describe('Query Compiler', () => {
         expect(result).toContain('SELECT SUM("public"."orders"."amount") AS "total_revenue"');
     });
 
+    it('compiles time_bucket expressions with DATE_TRUNC', () => {
+        const plan: SemanticQueryPlan = {
+            intent: 'Monthly orders',
+            assumptions: [],
+            requires_raw_sql: false,
+            select: [
+                { table: 'public.orders', column: 'created_at', timeGrain: 'month', alias: 'month_created_at' },
+                { table: 'public.orders', column: 'amount', agg: 'sum', alias: 'total_revenue' }
+            ],
+            groupBy: [
+                { table: 'public.orders', column: 'created_at', timeGrain: 'month' }
+            ],
+            orderBy: [
+                { table: 'public.orders', column: 'created_at', timeGrain: 'month', dir: 'asc' }
+            ],
+            limit: 12
+        };
+
+        const result = compileSemanticPlan(plan);
+        expect(result).toContain(`DATE_TRUNC('month', "public"."orders"."created_at") AS "month_created_at"`);
+        expect(result).toContain(`GROUP BY DATE_TRUNC('month', "public"."orders"."created_at")`);
+        expect(result).toContain(`ORDER BY DATE_TRUNC('month', "public"."orders"."created_at") ASC`);
+    });
+
+    it('compiles distinct_count aggregates', () => {
+        const plan: SemanticQueryPlan = {
+            intent: 'Distinct customers',
+            assumptions: [],
+            requires_raw_sql: false,
+            select: [
+                { table: 'public.orders', column: 'customer_id', agg: 'count', distinct: true, alias: 'distinct_customers' }
+            ],
+            limit: 1
+        };
+
+        const result = compileSemanticPlan(plan);
+        expect(result).toContain('COUNT(DISTINCT "public"."orders"."customer_id") AS "distinct_customers"');
+    });
+
     it('compiles multiple combined filters correctly', () => {
         const plan: SemanticQueryPlan = {
             intent: 'Test',

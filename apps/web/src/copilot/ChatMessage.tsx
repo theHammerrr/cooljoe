@@ -84,7 +84,7 @@ export function ChatMessage({ msg, previousUserMessageText, onResults, onUpdateM
                         onClick={() => msg.suggestedDraft && onSuggestedDraft(msg.suggestedDraft)}
                         className="bg-violet-500/20 hover:bg-violet-500/30 border border-violet-500/20 text-violet-300 px-3 py-1 rounded-lg font-bold uppercase tracking-widest text-[10px] transition-colors shrink-0"
                     >
-                        Generate {msg.suggestedDraft.mode.toUpperCase()}
+                        {msg.suggestedDraft.ctaLabel || `Generate ${msg.suggestedDraft.mode.toUpperCase()}`}
                     </button>
                 </div>
             )}

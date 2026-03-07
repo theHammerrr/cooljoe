@@ -1,8 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { loadComposeState, saveComposeState } from './composeState';
 
 interface CopilotChatFormProps {
     onSend: (text: string, intent: 'chat' | 'sql' | 'prisma') => void;
+    onCancelDraft?: () => void;
     disabled: boolean;
+    showCancelDraft?: boolean;
+    isCancellingDraft?: boolean;
 }
 
 interface ModeOption {
@@ -17,9 +21,20 @@ const MODES: ModeOption[] = [
     { value: 'chat', label: 'AI Chat', color: 'text-blue-400' },
 ];
 
-export function CopilotChatForm({ onSend, disabled }: CopilotChatFormProps) {
-    const [input, setInput] = useState('');
-    const [mode, setMode] = useState<'chat' | 'sql' | 'prisma'>('sql');
+export function CopilotChatForm({
+    onSend,
+    onCancelDraft,
+    disabled,
+    showCancelDraft = false,
+    isCancellingDraft = false
+}: CopilotChatFormProps) {
+    const initialComposeState = loadComposeState();
+    const [input, setInput] = useState(initialComposeState.input);
+    const [mode, setMode] = useState<'chat' | 'sql' | 'prisma'>(initialComposeState.mode);
+
+    useEffect(() => {
+        saveComposeState(input, mode);
+    }, [input, mode]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -67,6 +82,16 @@ export function CopilotChatForm({ onSend, disabled }: CopilotChatFormProps) {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
                     </svg>
                 </button>
+                {showCancelDraft && onCancelDraft && (
+                    <button
+                        type="button"
+                        onClick={onCancelDraft}
+                        disabled={isCancellingDraft}
+                        className="border border-rose-400/20 bg-rose-500/10 text-rose-300 hover:bg-rose-500/15 px-3 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-colors disabled:opacity-40 shrink-0"
+                    >
+                        {isCancellingDraft ? 'Cancelling' : 'Cancel Draft'}
+                    </button>
+                )}
             </form>
             {mode === 'chat' && (
                 <p className="text-[10px] text-slate-600 px-1 font-medium">
