@@ -75,12 +75,21 @@ model DraftJob {
   question      String
   preferredMode String
   constraints   String?
+  status        String   @default("pending")
   stage         String
   attempt       Int?
   detail        String?
   done          Boolean  @default(false)
   error         String?
+  resultStatus  Int?
+  resultPayload Json?
+  leaseOwner    String?
+  leaseExpiresAt DateTime?
+  recoveryCount Int      @default(0)
+  lastLeaseOwner String?
   createdAt     DateTime @default(now())
+  startedAt     DateTime?
+  completedAt   DateTime?
   updatedAt     DateTime
 
   @@index([updatedAt])

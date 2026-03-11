@@ -1,0 +1,3 @@
+ALTER TABLE "DraftJob"
+ADD COLUMN "recoveryCount" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN "lastLeaseOwner" TEXT;

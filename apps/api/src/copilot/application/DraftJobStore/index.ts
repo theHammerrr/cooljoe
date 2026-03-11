@@ -1,2 +1,2 @@
 export { draftJobStore } from './draftJobStore';
-export type { DraftJobStatusRecord } from './types';
+export type { DraftJobRecord, DraftJobStatusRecord, ResumableDraftJobRecord } from './types';

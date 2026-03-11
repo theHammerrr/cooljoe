@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import copilotRouter from './copilot';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { recoverDraftJobsOnStartup } from './copilot/application/draftJobRecovery';
 dotenv.config();
 
 export const app = express();
@@ -19,6 +20,8 @@ app.use('/api/copilot', copilotRouter);
 app.get('/api/health', (_req: Request, res: Response) => {
     res.json({ status: 'ok' });
 });
+
+void recoverDraftJobsOnStartup();
 
 // Start server only if not in test mode
 if (process.env.NODE_ENV !== 'test') {

@@ -6,6 +6,8 @@ export const SelectSubtreeSchema = z.object({
     role: z.string().optional(),
     column: z.string(),
     agg: z.enum(['count', 'sum', 'avg', 'min', 'max']).optional(),
+    distinct: z.boolean().optional(),
+    timeGrain: z.enum(['day', 'week', 'month', 'year']).optional(),
     alias: z.string().optional()
 });
 
@@ -30,7 +32,8 @@ export const GroupBySubtreeSchema = z.object({
     table: z.string(),
     tableRef: z.string().optional(),
     role: z.string().optional(),
-    column: z.string()
+    column: z.string(),
+    timeGrain: z.enum(['day', 'week', 'month', 'year']).optional()
 });
 
 export const OrderBySubtreeSchema = z.object({
@@ -38,6 +41,7 @@ export const OrderBySubtreeSchema = z.object({
     tableRef: z.string().optional(),
     role: z.string().optional(),
     column: z.string(),
+    timeGrain: z.enum(['day', 'week', 'month', 'year']).optional(),
     dir: z.enum(['asc', 'desc']).default('asc')
 });
 

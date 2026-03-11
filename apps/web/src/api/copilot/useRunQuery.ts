@@ -21,6 +21,9 @@ export const useRunQuery = () => {
             }
 
             return response.json();
+        },
+        onError: (error) => {
+            console.error('Failed to run query:', error);
         }
     });
 };

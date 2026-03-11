@@ -36,6 +36,7 @@ function buildAggregationArgs(plan: StructuredSemanticQueryPlan): Record<string,
 }
 
 export function compilePrismaPlan(plan: StructuredSemanticQueryPlan): string {
+    assertPrismaCompatiblePlan(plan);
     const baseTable = plan.joins?.[0]?.fromTable || plan.select[0].table;
     const modelName = stripSchemaName(baseTable);
     const args: Record<string, unknown> = {};
@@ -83,4 +84,14 @@ export function compilePrismaPlan(plan: StructuredSemanticQueryPlan): string {
     if (plan.limit && plan.limit < 1000) args.take = plan.limit;
 
     return `prisma.${modelName}.${call}(${formatPrismaArgs(args)})`;
+}
+
+function assertPrismaCompatiblePlan(plan: StructuredSemanticQueryPlan): void {
+    const hasUnsupportedSelect = plan.select.some((node) => node.distinct || node.timeGrain);
+    const hasUnsupportedGroupBy = (plan.groupBy || []).some((node) => node.timeGrain);
+    const hasUnsupportedOrderBy = (plan.orderBy || []).some((node) => node.timeGrain);
+
+    if (hasUnsupportedSelect || hasUnsupportedGroupBy || hasUnsupportedOrderBy) {
+        throw new Error('Prisma compiler does not support time-bucket or distinct derived operations.');
+    }
 }

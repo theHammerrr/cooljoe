@@ -7,6 +7,25 @@ export interface QueryBlock {
     riskFlags: string[];
 }
 
+export interface ClarificationPayload {
+    type: 'clarification_required';
+    message: string;
+    missing: string[];
+}
+
+export function isClarificationPayload(value: unknown): value is ClarificationPayload {
+    if (typeof value !== 'object' || value === null) {
+        return false;
+    }
+
+    return (
+        Reflect.get(value, 'type') === 'clarification_required' &&
+        typeof Reflect.get(value, 'message') === 'string' &&
+        Array.isArray(Reflect.get(value, 'missing')) &&
+        Reflect.get(value, 'missing').every((item: unknown) => typeof item === 'string')
+    );
+}
+
 export function isQueryBlock(value: unknown): value is QueryBlock {
     if (typeof value !== 'object' || value === null) {
         return false;
@@ -41,6 +60,23 @@ export interface CopilotMessage {
         question: string;
         mode: 'sql' | 'prisma';
         reason?: string;
+        constraints?: string;
+        ctaLabel?: string;
+        tooltip?: string;
+    };
+    suggestedInjection?: {
+        mode: 'sql' | 'prisma';
+        sql?: string;
+        prisma?: string;
+        reason?: string;
+        ctaLabel?: string;
+        tooltip?: string;
     };
     runError?: string;
+}
+
+export interface ChatNotice {
+    id: string;
+    tone: 'success' | 'error';
+    message: string;
 }

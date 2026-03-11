@@ -1,7 +1,8 @@
-import { DraftQueryResult, TopologyColumn } from './models';
+import { DraftQueryResult } from './models';
 import { getPrimaryKeyColumn, quoteIdentifier, quoteTableReference } from './common';
 import { buildTableRefs, findColumnForName, tableMentioned, TableRef } from './deterministicTables';
 import { scoreBossResolution, scoreSingleTableResolution } from './deterministicConfidence';
+import { selectDeterministicColumns } from './deterministicProjection';
 
 export interface DeterministicResolution {
     draft: DraftQueryResult;
@@ -9,19 +10,24 @@ export interface DeterministicResolution {
     reasons: string[];
 }
 
-function buildPkColumns(table: TableRef): TopologyColumn[] {
-    return table.columns.map((column) => ({ column }));
-}
+const DETERMINISTIC_PREVIEW_LIMIT = 50;
 
 function buildSingleTableDraft(question: string, table: TableRef): DraftQueryResult | null {
     if (!/\b(all|everything|every|list|show|get|retrieve)\b/i.test(question)) return null;
 
+    const selectedColumns = selectDeterministicColumns(table);
+    const sqlProjection = selectedColumns.map((column) => `t.${quoteIdentifier(column)}`).join(', ');
+    const prismaSelect = selectedColumns.map((column) => `${column}: true`).join(', ');
+
     return {
         intent: `Retrieve records from ${table.fullName}`,
-        assumptions: [`User requested rows from table "${table.fullName}".`],
-        sql: `SELECT ${quoteIdentifier(table.tableName)}.* FROM ${quoteTableReference(table.fullName)}`,
-        prisma: `prisma.${table.tableName}.findMany()`,
-        expectedColumns: [],
+        assumptions: [
+            `User requested rows from table "${table.fullName}".`,
+            `Results are limited to ${DETERMINISTIC_PREVIEW_LIMIT} rows for safety.`
+        ],
+        sql: `SELECT ${sqlProjection} FROM ${quoteTableReference(table.fullName)} t LIMIT ${DETERMINISTIC_PREVIEW_LIMIT}`,
+        prisma: `prisma.${table.tableName}.findMany({ select: { ${prismaSelect} }, take: ${DETERMINISTIC_PREVIEW_LIMIT} })`,
+        expectedColumns: selectedColumns,
         riskFlags: []
     };
 }
@@ -40,8 +46,8 @@ function buildBossDraft(question: string, tables: TableRef[]): DraftQueryResult 
 
     const selectCols = personNameColumns.map((column) => `ep.${quoteIdentifier(column)} ${quoteIdentifier(`employee_${column}`)}`)
         .concat(personNameColumns.map((column) => `bp.${quoteIdentifier(column)} ${quoteIdentifier(`boss_${column}`)}`));
-    const employeePk = getPrimaryKeyColumn(buildPkColumns(employee));
-    const personPk = getPrimaryKeyColumn(buildPkColumns(person));
+    const employeePk = getPrimaryKeyColumn(employee.columns.map((column) => ({ column })));
+    const personPk = getPrimaryKeyColumn(person.columns.map((column) => ({ column })));
     const employeeSql = quoteTableReference(employee.fullName);
     const personSql = quoteTableReference(person.fullName);
     const sql = [
@@ -49,17 +55,19 @@ function buildBossDraft(question: string, tables: TableRef[]): DraftQueryResult 
         `FROM ${employeeSql} e`,
         `JOIN ${personSql} ep ON e.${quoteIdentifier('person_id')} = ep.${quoteIdentifier(personPk)}`,
         `JOIN ${employeeSql} b ON e.${quoteIdentifier('boss_id')} = b.${quoteIdentifier(employeePk)}`,
-        `JOIN ${personSql} bp ON b.${quoteIdentifier('person_id')} = bp.${quoteIdentifier(personPk)}`
+        `JOIN ${personSql} bp ON b.${quoteIdentifier('person_id')} = bp.${quoteIdentifier(personPk)}`,
+        `LIMIT ${DETERMINISTIC_PREVIEW_LIMIT}`
     ].join('\n');
 
     return {
         intent: `Retrieve employees and their bosses from ${employee.schemaName}`,
         assumptions: [
             `Employee to boss relation uses "${employee.fullName}.boss_id -> ${employee.fullName}".`,
-            `Employee person relation uses "${employee.fullName}.person_id -> ${person.fullName}".`
+            `Employee person relation uses "${employee.fullName}.person_id -> ${person.fullName}".`,
+            `Results are limited to ${DETERMINISTIC_PREVIEW_LIMIT} rows for safety.`
         ],
         sql,
-        prisma: 'prisma.employee.findMany({ include: { boss: { include: { person: true } }, person: true } })',
+        prisma: `prisma.employee.findMany({ include: { boss: { include: { person: true } }, person: true }, take: ${DETERMINISTIC_PREVIEW_LIMIT} })`,
         expectedColumns: selectCols.map((column) => column.split(' ').slice(-1)[0].replace(/"/g, '')),
         riskFlags: []
     };

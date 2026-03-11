@@ -9,8 +9,11 @@ describeE2E('Copilot E2E Tests', () => {
     let pool: Pool;
 
     beforeAll(async () => {
-        // Use TARGET_DATABASE_URL or default
-        const connectionString = process.env.TARGET_DATABASE_URL || "postgresql://postgres:postgres@localhost:5432/postgres?schema=public";
+        // Use PROJECT_DATABASE_URL, legacy TARGET_DATABASE_URL, or default
+        const connectionString =
+            process.env.PROJECT_DATABASE_URL ||
+            process.env.TARGET_DATABASE_URL ||
+            "postgresql://postgres:postgres@localhost:5432/postgres?schema=public";
         pool = new Pool({ connectionString });
 
         // Seed the target DB with a 'e2e_test_users' table since it's in the hardcoded allowlist

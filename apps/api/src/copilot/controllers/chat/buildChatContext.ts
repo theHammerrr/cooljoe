@@ -1,38 +1,25 @@
 import { retrievalService } from '../../services/retrievalService';
 import { buildJoinGraph, buildTableCatalog, detectRequestedSchema } from '../draftQuery/schemaContext';
-
-interface ChatTurn {
-    role: 'user' | 'assistant';
-    text: string;
-}
+import {
+    normalizeClientContext,
+    normalizeConversationMemory,
+    normalizeConversationSummary,
+    normalizeOptionalString,
+    normalizeRecentTurns
+} from './chatContextNormalization';
 
 interface BuildChatContextInput {
     prompt: string;
     context?: unknown;
 }
 
-function normalizeClientContext(context: unknown): Record<string, unknown> {
-    if (typeof context !== 'object' || context === null) return {};
-
-    return { ...context };
-}
-
-function normalizeRecentTurns(context: Record<string, unknown>): ChatTurn[] {
-    const rawTurns = Reflect.get(context, 'recentTurns');
-
-    if (!Array.isArray(rawTurns)) return [];
-
-    return rawTurns
-        .filter((item): item is Record<string, unknown> => typeof item === 'object' && item !== null)
-        .map((item): ChatTurn => ({ role: item.role === 'assistant' ? 'assistant' : 'user', text: String(item.text || '').trim() }))
-        .filter((turn) => turn.text.length > 0)
-        .slice(-6);
-}
-
 export async function buildChatContext(input: BuildChatContextInput): Promise<Record<string, unknown>> {
     console.time('chat-context-build');
     const clientContext = normalizeClientContext(input.context);
     const recentTurns = normalizeRecentTurns(clientContext);
+    const conversationSummary = normalizeConversationSummary(clientContext);
+    const conversationMemory = normalizeConversationMemory(clientContext);
+    const topicId = normalizeOptionalString(Reflect.get(clientContext, 'topicId'));
 
     const [schema, glossary, similarExamples] = await Promise.all([
         retrievalService.getLatestSchema(),
@@ -54,6 +41,9 @@ export async function buildChatContext(input: BuildChatContextInput): Promise<Re
         joinGraph,
         glossary,
         similarExamples,
-        recentTurns
+        recentTurns,
+        conversationSummary,
+        conversationMemory,
+        topicId
     };
 }

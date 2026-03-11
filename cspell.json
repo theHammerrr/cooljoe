@@ -9,6 +9,7 @@
     "commitlint",
     "cooljoe",
     "fkey",
+    "Hammerrr",
     "healthcheck",
     "hnsw",
     "husky",
@@ -21,15 +22,18 @@
     "officedocument",
     "Ollama",
     "openxmlformats",
+    "Persistable",
     "pgvector",
     "pkey",
     "pnpm",
+    "Renderable",
     "seperator",
     "spreadsheetml",
     "sqlify",
     "tailwindcss",
     "tsnode",
     "turborepo",
+    "unstub",
     "vite",
     "vitest",
     "xlink"
@@ -41,6 +45,6 @@
     "coverage",
     "**/*.min.js",
     "pnpm-lock.yaml",
-    "**/*.vsg"
+    "**/*.svg"
   ]
 }
