@@ -30,13 +30,13 @@ services:
       # Connects using Docker's internal DNS network name `db`
       DATABASE_URL: "postgresql://copilot_admin:secure_password@db:5432/db_copilot"
       # Target Database to parse context from (Needs to point to User DB)
-      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL}
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-postgresql://copilot_admin:secure_password@db:5432/db_copilot}
       # Dynamic LLM Provider Selection
-      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_PROVIDER: ${AI_PROVIDER:-ollama}
       AI_MODEL: ${AI_MODEL:-gpt-4o}
       AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
       OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OLLAMA_HOST: ${OLLAMA_HOST}
+      OLLAMA_HOST: ${OLLAMA_HOST:-http://host.docker.internal:11434}
       TABLE_ALLOWLIST: ${TABLE_ALLOWLIST}
       CLIENT_URL: "http://localhost:3000"
     depends_on:

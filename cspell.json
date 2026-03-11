@@ -44,6 +44,6 @@
     "coverage",
     "**/*.min.js",
     "pnpm-lock.yaml",
-    "**/*.vsg"
+    "**/*.svg"
   ]
 }
