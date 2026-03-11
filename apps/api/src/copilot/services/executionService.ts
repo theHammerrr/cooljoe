@@ -2,6 +2,10 @@ import { Pool } from 'pg';
 
 let pool: Pool | null = null;
 
+function getProjectDatabaseUrl(): string | undefined {
+    return process.env.PROJECT_DATABASE_URL || process.env.TARGET_DATABASE_URL;
+}
+
 interface ExplainTargetQueryResult {
     skipped: boolean;
     runtimeMs?: number;
@@ -12,12 +16,14 @@ interface ExplainTargetQueryResult {
  */
 function getTargetPool(): Pool {
     if (!pool) {
-        if (!process.env.TARGET_DATABASE_URL) {
-            throw new Error("TARGET_DATABASE_URL is not configured.");
+        const connectionString = getProjectDatabaseUrl();
+
+        if (!connectionString) {
+            throw new Error("PROJECT_DATABASE_URL is not configured.");
         }
 
         pool = new Pool({
-            connectionString: process.env.TARGET_DATABASE_URL,
+            connectionString,
             // Configure hard limits inside the pool itself to protect against runaways
             query_timeout: 30000,
             statement_timeout: 30000,
@@ -43,7 +49,7 @@ export const executeTargetQuery = async (safeSql: string) => {
 };
 
 export const explainTargetQuery = async (safeSql: string): Promise<ExplainTargetQueryResult> => {
-    if (!process.env.TARGET_DATABASE_URL) {
+    if (!getProjectDatabaseUrl()) {
         return { skipped: true };
     }
 

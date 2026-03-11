@@ -29,8 +29,10 @@ services:
       PORT: 3001
       # Connects using Docker's internal DNS network name `db`
       DATABASE_URL: "postgresql://copilot_admin:secure_password@db:5432/db_copilot"
-      # Target Database to parse context from (Needs to point to User DB)
-      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-postgresql://copilot_admin:secure_password@db:5432/db_copilot}
+      # Project Database that the workspace explores and queries
+      PROJECT_DATABASE_URL: ${PROJECT_DATABASE_URL:-postgresql://copilot_admin:secure_password@db:5432/db_copilot}
+      # Legacy fallback name kept for older local setups
+      TARGET_DATABASE_URL: ${TARGET_DATABASE_URL:-}
       # Dynamic LLM Provider Selection
       AI_PROVIDER: ${AI_PROVIDER:-ollama}
       AI_MODEL: ${AI_MODEL:-gpt-4o}

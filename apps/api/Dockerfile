@@ -37,7 +37,8 @@ COPY --from=builder /app/apps/api/prisma /app/apps/api/prisma
 COPY --from=builder /app/apps/api/package.json /app/apps/api/package.json
 
 # Required Env Vars (to be injected by compose):
-# DATABASE_URL, TARGET_DATABASE_URL, OPENAI_API_KEY, AI_PROVIDER=openai
+# DATABASE_URL, PROJECT_DATABASE_URL, OPENAI_API_KEY, AI_PROVIDER=openai
+# TARGET_DATABASE_URL is still accepted as a legacy fallback.
 
 EXPOSE 3001
 WORKDIR /app/apps/api
