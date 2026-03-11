@@ -13,5 +13,5 @@ export const useClickOutside = ({ containerRef, callback }: { containerRef: Reac
         document.addEventListener('mousedown', handleClickOutside);
 
         return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [containerRef]);
+    }, [callback, containerRef]);
 }
