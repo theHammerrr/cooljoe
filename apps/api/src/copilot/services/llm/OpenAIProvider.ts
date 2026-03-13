@@ -1,5 +1,5 @@
 import { AIProvider } from './AIProvider';
-import OpenAI from 'openai';
+import OpenAI, { ClientOptions } from 'openai';
 import { buildChatSystemPrompt, buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
 import { parseDraftResponse, parseExplanationResponse } from './responseParsers';
 
@@ -16,7 +16,19 @@ export class OpenAIProvider implements AIProvider {
         const key = apiKey || process.env.OPENAI_API_KEY;
 
         if (!key) throw new Error("OPENAI_API_KEY is missing");
-        this.openai = new OpenAI({ apiKey: key });
+
+        const openAiOptions: ClientOptions = {
+            apiKey: key,
+        }
+
+        const baseURL = process.env.OPENAI_BASE_URL;
+
+        if (baseURL) {
+            openAiOptions.baseURL = baseURL;
+        }
+
+
+        this.openai = new OpenAI(openAiOptions);
         this.model = model;
         this.embeddingModel = embeddingModel;
     }
