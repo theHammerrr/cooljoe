@@ -1,6 +1,6 @@
 export type QueryAnalysisMode = 'explain' | 'explain_analyze';
 export type QueryAnalysisEvidenceSource = 'plan' | 'metadata' | 'sql_shape';
-
+import type { QueryAnalysisAiSummary } from './queryAnalysisSummaryTypes';
 export interface QueryAnalysisPlanBuffers {
     sharedHitBlocks?: number;
     sharedReadBlocks?: number;
@@ -21,7 +21,9 @@ export interface QueryAnalysisIndexMetadata {
 }
 
 export interface QueryAnalysisPlanNode {
+    nodeId: string;
     nodeType: string;
+    sqlReferences: string[];
     relationName?: string;
     schema?: string;
     alias?: string;
@@ -52,38 +54,25 @@ export interface QueryAnalysisFinding {
     title: string;
     evidence: string[];
     evidenceSources: QueryAnalysisEvidenceSource[];
+    runtimeContext?: QueryAnalysisFindingRuntimeContext;
     suggestion: string;
     confidence: 'high' | 'medium';
     isHeuristic: boolean;
 }
 
-export interface QueryAnalysisPredicate {
-    table?: string;
-    column?: string;
-    operator: string;
-    usesFunction: boolean;
-    hasLeadingWildcard: boolean;
+export interface QueryAnalysisFindingRuntimeContext {
+    nodeId: string;
+    nodeType: string;
+    estimatedRows?: number;
+    actualRows?: number;
+    actualLoops?: number;
+    actualTotalTimeMs?: number;
+    driftRatio?: number;
 }
-
-export interface QueryAnalysisJoin {
-    leftTable?: string;
-    leftColumn?: string;
-    rightTable?: string;
-    rightColumn?: string;
-}
-
-export interface QueryAnalysisSort {
-    table?: string;
-    column?: string;
-    direction?: 'ASC' | 'DESC';
-}
-
-export interface QueryAnalysisTableStats {
-    schemaName: string;
-    tableName: string;
-    estimatedRows: number;
-}
-
+export interface QueryAnalysisPredicate { table?: string; column?: string; operator: string; usesFunction: boolean; hasLeadingWildcard: boolean; }
+export interface QueryAnalysisJoin { leftTable?: string; leftColumn?: string; rightTable?: string; rightColumn?: string; }
+export interface QueryAnalysisSort { table?: string; column?: string; direction?: 'ASC' | 'DESC'; }
+export interface QueryAnalysisTableStats { schemaName: string; tableName: string; estimatedRows: number; }
 export interface QueryAnalysisResult {
     mode: QueryAnalysisMode;
     normalizedSql: string;
@@ -91,6 +80,7 @@ export interface QueryAnalysisResult {
     indexes: QueryAnalysisIndexMetadata[];
     tableStats: QueryAnalysisTableStats[];
     safetyNotes: string[];
+    aiSummary: QueryAnalysisAiSummary | null;
     findings: QueryAnalysisFinding[];
     rawPlan: QueryAnalysisPlanNode;
 }

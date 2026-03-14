@@ -8,6 +8,11 @@ interface ExplanationResponse {
     followUps: string[];
 }
 
+interface QueryAnalysisSummaryResponse {
+    summary: string;
+    suggestions: string[];
+}
+
 function tryParseLogicalPlan(normalizedPlan: unknown): LogicalQueryPlan | null {
     try {
         return LogicalQueryPlanSchema.parse(normalizedPlan);
@@ -60,5 +65,14 @@ export function parseExplanationResponse(content: string | null | undefined): Ex
     return {
         explanation: parsed.explanation || '',
         followUps: parsed.followUps || []
+    };
+}
+
+export function parseQueryAnalysisSummaryResponse(content: string | null | undefined): QueryAnalysisSummaryResponse {
+    const parsed = JSON.parse(content || '{}');
+
+    return {
+        summary: parsed.summary || '',
+        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions.filter((value: unknown): value is string => typeof value === 'string') : []
     };
 }

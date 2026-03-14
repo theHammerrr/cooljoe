@@ -12,6 +12,7 @@ export function isQueryAnalysisResult(value: unknown): value is QueryAnalysisRes
         && Array.isArray(Reflect.get(value, 'indexes'))
         && Array.isArray(Reflect.get(value, 'tableStats'))
         && Array.isArray(Reflect.get(value, 'safetyNotes'))
+        && (Reflect.get(value, 'aiSummary') === null || typeof Reflect.get(value, 'aiSummary') === 'object')
         && Array.isArray(Reflect.get(value, 'findings'))
         && typeof Reflect.get(value, 'rawPlan') === 'object'
         && Reflect.get(value, 'rawPlan') !== null;

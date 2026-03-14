@@ -48,6 +48,15 @@ function appendEstimateDriftFinding(findings: QueryAnalysisFinding[], node: Quer
             `Planner estimates differ from observed execution by about ${driftRatio.toFixed(1)}x.`
         ],
         evidenceSources: ['plan'],
+        runtimeContext: {
+            nodeId: node.nodeId,
+            nodeType: node.nodeType,
+            estimatedRows: node.planRows,
+            actualRows: Math.round(actualRows),
+            actualLoops: node.actualLoops,
+            actualTotalTimeMs: Number(node.actualTotalTime.toFixed(3)),
+            driftRatio: Number(driftRatio.toFixed(1))
+        },
         suggestion: 'Refresh table statistics with ANALYZE if they may be stale, and review predicate selectivity or correlated filters that the planner may be estimating poorly.',
         confidence: 'high',
         isHeuristic: false

@@ -11,7 +11,7 @@ export const useAnalyzeQuery = () => {
             const response = await fetch(`${API_BASE_URL}/api/copilot/analyze-query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, mode })
+                body: JSON.stringify({ query, mode, includeAiSummary: true })
             });
             const payload = await response.json().catch(() => ({}));
 

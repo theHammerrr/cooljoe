@@ -7,15 +7,17 @@ import { validateRunQueryTablesAgainstSchema } from '../safety/runQuerySchemaGua
 import { analyzeQuery as analyzeQueryService } from '../services/queryAnalysis/queryAnalysisService';
 import { getErrorMessage } from '../utils/errorUtils';
 import { assertAnalyzeQueryModeAllowed } from './analyzeQueryMode';
+import { buildQueryAnalysisAiSummary } from '../services/queryAnalysis/queryAnalysisAiSummary';
 
 const analyzeQueryRequestSchema = z.object({
     query: z.string().min(1, 'Query is required.'),
-    mode: z.enum(['explain', 'explain_analyze']).optional()
+    mode: z.enum(['explain', 'explain_analyze']).optional(),
+    includeAiSummary: z.boolean().optional()
 });
 
 export const analyzeQuery = async (req: Request, res: Response) => {
     try {
-        const { query, mode = 'explain' } = analyzeQueryRequestSchema.parse(req.body);
+        const { query, mode = 'explain', includeAiSummary = true } = analyzeQueryRequestSchema.parse(req.body);
         const allowlist = allowlistService.getAllowedTables();
         const safeSql = validateAndFormatQuery(query, allowlist);
         const latestSchema = await retrievalService.getLatestSchema();
@@ -24,8 +26,11 @@ export const analyzeQuery = async (req: Request, res: Response) => {
         assertAnalyzeQueryModeAllowed(mode);
 
         const result = await analyzeQueryService(safeSql, mode);
+        const aiSummary = includeAiSummary
+            ? await buildQueryAnalysisAiSummary({ analysis: result, sql: safeSql, schema: latestSchema })
+            : null;
 
-        return res.json({ success: true, ...result });
+        return res.json({ success: true, ...result, aiSummary });
     } catch (error: unknown) {
         if (error instanceof DisallowedTableError) {
             return res.status(200).json({

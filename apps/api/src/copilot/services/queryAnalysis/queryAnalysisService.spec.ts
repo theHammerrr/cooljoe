@@ -54,8 +54,13 @@ describe('analyzeQuery', () => {
 
         expect(result.mode).toBe('explain');
         expect(result.safetyNotes).toEqual([]);
+        expect(result.aiSummary).toBeNull();
         expect(result.referencedTables).toEqual(['orders']);
         expect(result.indexes).toHaveLength(1);
+        expect(result.rawPlan.sqlReferences).toEqual(expect.arrayContaining([
+            'FROM public.orders',
+            'WHERE customer_id = 42'
+        ]));
         expect(result.findings.map((finding) => finding.title)).toEqual(expect.arrayContaining([
             'Wide projection via SELECT *',
             'Sequential scan on public.orders',
@@ -320,6 +325,15 @@ describe('analyzeQuery', () => {
             'Actual rows across loops: 5000.',
             'Actual loops: 1.'
         ]));
+        expect(driftFinding?.runtimeContext).toEqual({
+            nodeId: '0:seq-scan:public-orders',
+            nodeType: 'Seq Scan',
+            estimatedRows: 100,
+            actualRows: 5000,
+            actualLoops: 1,
+            actualTotalTimeMs: 88.123,
+            driftRatio: 50
+        });
         expect(
             executeTargetQueryRawSpy.mock.calls.some(([sql]) => String(sql).includes('EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)'))
         ).toBe(true);

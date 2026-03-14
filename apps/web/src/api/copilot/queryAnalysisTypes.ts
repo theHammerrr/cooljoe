@@ -6,9 +6,20 @@ export interface QueryAnalysisFinding {
     title: string;
     evidence: string[];
     evidenceSources: Array<'plan' | 'metadata' | 'sql_shape'>;
+    runtimeContext?: QueryAnalysisFindingRuntimeContext;
     suggestion: string;
     confidence: 'high' | 'medium';
     isHeuristic: boolean;
+}
+
+export interface QueryAnalysisFindingRuntimeContext {
+    nodeId: string;
+    nodeType: string;
+    estimatedRows?: number;
+    actualRows?: number;
+    actualLoops?: number;
+    actualTotalTimeMs?: number;
+    driftRatio?: number;
 }
 
 export interface QueryAnalysisIndexMetadata {
@@ -23,7 +34,9 @@ export interface QueryAnalysisIndexMetadata {
 }
 
 export interface QueryAnalysisPlanNode {
+    nodeId: string;
     nodeType: string;
+    sqlReferences: string[];
     relationName?: string;
     schema?: string;
     alias?: string;
@@ -59,6 +72,12 @@ export interface QueryAnalysisTableStats {
     estimatedRows: number;
 }
 
+export interface QueryAnalysisAiSummary {
+    summary: string;
+    suggestions: string[];
+    disclaimer: string;
+}
+
 export interface QueryAnalysisResult {
     success: true;
     mode: QueryAnalysisMode;
@@ -67,6 +86,7 @@ export interface QueryAnalysisResult {
     indexes: QueryAnalysisIndexMetadata[];
     tableStats: QueryAnalysisTableStats[];
     safetyNotes: string[];
+    aiSummary: QueryAnalysisAiSummary | null;
     findings: QueryAnalysisFinding[];
     rawPlan: QueryAnalysisPlanNode;
 }
@@ -74,4 +94,5 @@ export interface QueryAnalysisResult {
 export interface AnalyzeQueryParams {
     query: string;
     mode?: QueryAnalysisMode;
+    includeAiSummary?: boolean;
 }

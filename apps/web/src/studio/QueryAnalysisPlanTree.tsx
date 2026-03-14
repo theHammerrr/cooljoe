@@ -1,0 +1,52 @@
+import { useMemo, useState } from 'react';
+import type { QueryAnalysisPlanNode } from '../api/copilot/queryAnalysisTypes';
+import { QueryAnalysisPlanTreeNode } from './QueryAnalysisPlanTreeNode';
+import { collectAncestorNodeIds } from './queryAnalysisPlanTreeHelpers';
+
+interface QueryAnalysisPlanTreeProps {
+    root: QueryAnalysisPlanNode;
+    selectedNodeId: string;
+    onSelectNode: (nodeId: string) => void;
+}
+
+export function QueryAnalysisPlanTree({ root, selectedNodeId, onSelectNode }: QueryAnalysisPlanTreeProps) {
+    const [expandedNodeIds, setExpandedNodeIds] = useState<Set<string>>(() => new Set([root.nodeId]));
+    const ancestorNodeIds = useMemo(() => collectAncestorNodeIds(root, selectedNodeId), [root, selectedNodeId]);
+    const ancestorNodeIdSet = new Set(ancestorNodeIds);
+    const visibleExpandedNodeIds = useMemo(() => new Set([...expandedNodeIds, ...ancestorNodeIds]), [expandedNodeIds, ancestorNodeIds]);
+
+    return (
+        <section className="rounded-xl border border-white/5 bg-[#161b22] p-4">
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Plan Tree</p>
+            <div className="mt-3 max-h-[28rem] space-y-2 overflow-auto pr-1">
+                <QueryAnalysisPlanTreeNode
+                    node={root}
+                    depth={0}
+                    expandedNodeIds={expandedNodeIds}
+                    visibleExpandedNodeIds={visibleExpandedNodeIds}
+                    ancestorNodeIdSet={ancestorNodeIdSet}
+                    selectedNodeId={selectedNodeId}
+                    onSelectNode={onSelectNode}
+                    onToggleNode={(nodeId) => toggleExpandedNode(setExpandedNodeIds, nodeId)}
+                />
+            </div>
+        </section>
+    );
+}
+
+function toggleExpandedNode(
+    setExpandedNodeIds: React.Dispatch<React.SetStateAction<Set<string>>>,
+    nodeId: string
+): void {
+    setExpandedNodeIds((current) => {
+        const next = new Set(current);
+
+        if (next.has(nodeId)) {
+            next.delete(nodeId);
+        } else {
+            next.add(nodeId);
+        }
+
+        return next;
+    });
+}

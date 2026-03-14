@@ -1,10 +1,13 @@
 import type { QueryAnalysisFinding } from '../api/copilot/useAnalyzeQuery';
+import { QueryAnalysisFindingRuntimeContext } from './QueryAnalysisFindingRuntimeContext';
 
 interface QueryAnalysisFindingsSectionProps {
     findings: QueryAnalysisFinding[];
+    onSelectNode: (nodeId: string) => void;
+    selectedNodeId: string;
 }
 
-export function QueryAnalysisFindingsSection({ findings }: QueryAnalysisFindingsSectionProps) {
+export function QueryAnalysisFindingsSection({ findings, onSelectNode, selectedNodeId }: QueryAnalysisFindingsSectionProps) {
     return (
         <section className="rounded-xl border border-white/5 bg-[#161b22] p-4">
             <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Findings</p>
@@ -15,7 +18,14 @@ export function QueryAnalysisFindingsSection({ findings }: QueryAnalysisFindings
                     </div>
                 )}
                 {findings.map((finding) => (
-                    <article key={`${finding.category}:${finding.title}`} className="rounded-lg border border-white/5 bg-black/20 p-4">
+                    <article
+                        key={`${finding.category}:${finding.title}`}
+                        className={`rounded-lg border p-4 ${
+                            finding.runtimeContext?.nodeId === selectedNodeId
+                                ? 'border-cyan-400/35 bg-cyan-500/5'
+                                : 'border-white/5 bg-black/20'
+                        }`}
+                    >
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <h3 className="text-sm font-semibold text-slate-100">{finding.title}</h3>
@@ -52,6 +62,13 @@ export function QueryAnalysisFindingsSection({ findings }: QueryAnalysisFindings
                         <ul className="mt-3 space-y-1 text-sm text-slate-300">
                             {finding.evidence.map((item) => <li key={item}>{item}</li>)}
                         </ul>
+                        {finding.runtimeContext && (
+                            <QueryAnalysisFindingRuntimeContext
+                                runtimeContext={finding.runtimeContext}
+                                isSelected={finding.runtimeContext.nodeId === selectedNodeId}
+                                onSelectNode={onSelectNode}
+                            />
+                        )}
                         <p className="mt-3 rounded-lg border border-cyan-500/10 bg-cyan-500/5 px-3 py-2 text-sm text-cyan-50">
                             {finding.suggestion}
                         </p>

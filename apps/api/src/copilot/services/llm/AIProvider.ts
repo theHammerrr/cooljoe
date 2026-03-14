@@ -1,8 +1,14 @@
 import type { LogicalQueryPlan } from '../queryCompiler/logicalPlanTypes';
+import type { QueryAnalysisFinding, QueryAnalysisPlanNode } from '../queryAnalysis/types';
 
 export interface ExplanationResponse {
     explanation: string;
     followUps: string[];
+}
+
+export interface QueryAnalysisSummaryResponse {
+    summary: string;
+    suggestions: string[];
 }
 
 export interface AIProvider {
@@ -14,5 +20,11 @@ export interface AIProvider {
         onChunk: (chunk: string) => void
     ): Promise<string>;
     generateExplanation(question: string, sql: string, dataSample: unknown[], schema: unknown): Promise<ExplanationResponse>;
+    generateQueryAnalysisSummary?(input: {
+        sql: string;
+        findings: QueryAnalysisFinding[];
+        rawPlan: QueryAnalysisPlanNode;
+        schema: unknown;
+    }): Promise<QueryAnalysisSummaryResponse>;
     generateEmbeddings(texts: string[]): Promise<number[][]>;
 }

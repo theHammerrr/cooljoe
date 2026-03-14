@@ -1,15 +1,21 @@
 import type { QueryAnalysisPlanNode } from './types';
 
-export function normalizePlanNode(value: unknown): QueryAnalysisPlanNode {
+export function normalizePlanNode(value: unknown, path = '0'): QueryAnalysisPlanNode {
     const source = typeof value === 'object' && value !== null ? value : {};
     const plans = Reflect.get(source, 'Plans');
     const sortKey = Reflect.get(source, 'Sort Key');
+    const nodeType = getString(source, 'Node Type') || 'Unknown';
+    const relationName = getString(source, 'Relation Name');
+    const schema = getString(source, 'Schema');
+    const alias = getString(source, 'Alias');
 
     return {
-        nodeType: getString(source, 'Node Type') || 'Unknown',
-        relationName: getString(source, 'Relation Name'),
-        schema: getString(source, 'Schema'),
-        alias: getString(source, 'Alias'),
+        nodeId: createNodeId(path, nodeType, schema, relationName, alias),
+        nodeType,
+        sqlReferences: [],
+        relationName,
+        schema,
+        alias,
         startupCost: getNumber(source, 'Startup Cost'),
         totalCost: getNumber(source, 'Total Cost'),
         planRows: getNumber(source, 'Plan Rows'),
@@ -28,8 +34,16 @@ export function normalizePlanNode(value: unknown): QueryAnalysisPlanNode {
         joinType: getString(source, 'Join Type'),
         sortKey: Array.isArray(sortKey) ? sortKey.filter((item): item is string => typeof item === 'string') : undefined,
         buffers: normalizePlanBuffers(source),
-        plans: Array.isArray(plans) ? plans.map((entry) => normalizePlanNode(entry)) : []
+        plans: Array.isArray(plans) ? plans.map((entry, index) => normalizePlanNode(entry, `${path}.${index}`)) : []
     };
+}
+
+function createNodeId(path: string, nodeType: string, schema?: string, relationName?: string, alias?: string): string {
+    const location = relationName ? `${schema ? `${schema}.` : ''}${relationName}` : alias;
+    const normalizedType = nodeType.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const normalizedLocation = location?.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+    return normalizedLocation ? `${path}:${normalizedType}:${normalizedLocation}` : `${path}:${normalizedType}`;
 }
 
 function normalizePlanBuffers(value: object): QueryAnalysisPlanNode['buffers'] {

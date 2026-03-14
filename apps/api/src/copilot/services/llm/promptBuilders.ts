@@ -67,3 +67,36 @@ Return ONLY a JSON object:
 { "explanation": "Human readable explanation", "followUps": ["Suggested follow up question 1"] }
 `;
 }
+
+export function buildQueryAnalysisSummaryPrompt(input: {
+  sql: string;
+  findings: unknown[];
+  rawPlan: unknown;
+  schema: unknown;
+}): string {
+  return `You are helping summarize a SQL query performance analysis.
+
+Rules:
+1. Base your response only on the supplied SQL, findings, plan summary, and schema.
+2. Do not invent indexes, tables, columns, or measured improvements.
+3. Keep the summary concise and practical.
+4. Suggestions must be phrased as things to validate, not guaranteed fixes.
+5. Return ONLY valid JSON in this shape:
+{
+  "summary": "2-4 sentence summary",
+  "suggestions": ["Short suggestion 1", "Short suggestion 2", "Short suggestion 3"]
+}
+
+SQL:
+${input.sql}
+
+Findings:
+${JSON.stringify(input.findings, null, 2)}
+
+Plan Summary:
+${JSON.stringify(input.rawPlan, null, 2)}
+
+Schema Context:
+${JSON.stringify(input.schema, null, 2)}
+`;
+}

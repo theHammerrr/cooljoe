@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react';
 import type { QueryAnalysisResult } from '../api/copilot/useAnalyzeQuery';
+import { QueryAnalysisAiSummarySection } from './QueryAnalysisAiSummarySection';
 import { QueryAnalysisFindingsSection } from './QueryAnalysisFindingsSection';
 import { QueryAnalysisSidebar } from './QueryAnalysisSidebar';
 
@@ -9,6 +11,12 @@ interface QueryAnalysisResultsPaneProps {
 }
 
 export function QueryAnalysisResultsPane({ analysis, analysisError, onClear }: QueryAnalysisResultsPaneProps) {
+    const [selectedNodeId, setSelectedNodeId] = useState(analysis.rawPlan.nodeId);
+
+    useEffect(() => {
+        setSelectedNodeId(analysis.rawPlan.nodeId);
+    }, [analysis]);
+
     return (
         <div className="flex h-full min-h-0 flex-1 flex-col gap-4 overflow-hidden">
             {analysisError && (
@@ -39,7 +47,12 @@ export function QueryAnalysisResultsPane({ analysis, analysisError, onClear }: Q
 
             <div className="grid min-h-0 flex-1 gap-4 overflow-auto xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)]">
                 <div className="space-y-4">
-                    <QueryAnalysisFindingsSection findings={analysis.findings} />
+                    <QueryAnalysisAiSummarySection aiSummary={analysis.aiSummary} />
+                    <QueryAnalysisFindingsSection
+                        findings={analysis.findings}
+                        onSelectNode={setSelectedNodeId}
+                        selectedNodeId={selectedNodeId}
+                    />
                     <section className="rounded-xl border border-white/5 bg-[#161b22] p-4">
                         <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Normalized SQL</p>
                         <pre className="mt-3 overflow-auto rounded-lg border border-white/5 bg-black/30 p-3 text-xs text-slate-300">
@@ -47,7 +60,7 @@ export function QueryAnalysisResultsPane({ analysis, analysisError, onClear }: Q
                         </pre>
                     </section>
                 </div>
-                <QueryAnalysisSidebar analysis={analysis} />
+                <QueryAnalysisSidebar analysis={analysis} selectedNodeId={selectedNodeId} onSelectNode={setSelectedNodeId} />
             </div>
         </div>
     );
