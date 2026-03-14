@@ -1,4 +1,5 @@
 import { classifyIndexCoverage, normalizeColumn } from './queryAnalysisIndexMatching';
+import { getSortSqlReferences } from './queryAnalysisFindingSqlReferences';
 import type {
     QueryAnalysisFinding,
     QueryAnalysisIndexMetadata,
@@ -14,6 +15,7 @@ import {
 } from './queryAnalysisTableStats';
 
 export function buildSortFindings(
+    sql: string,
     sorts: QueryAnalysisSort[],
     predicates: QueryAnalysisPredicate[],
     indexes: QueryAnalysisIndexMetadata[],
@@ -51,6 +53,7 @@ export function buildSortFindings(
                     ...rowEvidence
                 ],
                 evidenceSources: ['metadata', 'sql_shape'],
+                sqlReferences: getSortSqlReferences(sql, sort),
                 suggestion: `Consider an index whose leading columns match the filter columns and whose next column is ${sort.column}, or rewrite the query to align with the existing index order.`,
                 confidence: 'medium',
                 isHeuristic: true
@@ -68,6 +71,7 @@ export function buildSortFindings(
                 ...rowEvidence
             ],
             evidenceSources: ['metadata', 'sql_shape'],
+            sqlReferences: getSortSqlReferences(sql, sort),
             suggestion: `If this sort is frequent and expensive, consider adding an index that supports ordering by ${sort.column}, ideally after any highly selective filter columns.`,
             confidence: 'medium',
             isHeuristic: true

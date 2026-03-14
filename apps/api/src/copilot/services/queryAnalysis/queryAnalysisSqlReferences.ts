@@ -1,6 +1,6 @@
 import type { QueryAnalysisPlanNode } from './types';
 
-interface QuerySqlFragments {
+export interface QuerySqlFragments {
     selectClause?: string;
     fromClause?: string;
     whereClause?: string;
@@ -68,7 +68,7 @@ function getSqlReferencesForNode(node: QueryAnalysisPlanNode, fragments: QuerySq
     }
 }
 
-function extractQuerySqlFragments(sql: string): QuerySqlFragments {
+export function extractQuerySqlFragments(sql: string): QuerySqlFragments {
     return {
         selectClause: matchClause(sql, /\bselect\b[\s\S]*?(?=\bfrom\b)/i),
         fromClause: matchClause(sql, /\bfrom\b[\s\S]*?(?=\bwhere\b|\bgroup\s+by\b|\border\s+by\b|\blimit\b|$)/i),

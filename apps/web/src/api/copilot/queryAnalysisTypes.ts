@@ -3,9 +3,13 @@ export type QueryAnalysisMode = 'explain' | 'explain_analyze';
 export interface QueryAnalysisFinding {
     severity: 'low' | 'medium' | 'high';
     category: 'query_shape' | 'index' | 'scan' | 'join' | 'sort';
+    reasonableness?: 'high_priority' | 'worth_investigating' | 'likely_reasonable';
+    reasonablenessExplanation?: string;
     title: string;
     evidence: string[];
     evidenceSources: Array<'plan' | 'metadata' | 'sql_shape'>;
+    sqlReferences?: string[];
+    focusNodeId?: string;
     runtimeContext?: QueryAnalysisFindingRuntimeContext;
     suggestion: string;
     confidence: 'high' | 'medium';

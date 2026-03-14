@@ -66,6 +66,14 @@ describe('analyzeQuery', () => {
             'Sequential scan on public.orders',
             'No supporting index found for filter on public.orders.customer_id'
         ]));
+        expect(result.findings.find((finding) => finding.title === 'Wide projection via SELECT *')?.sqlReferences).toEqual(['SELECT *']);
+        expect(result.findings.find((finding) => finding.title === 'No supporting index found for filter on public.orders.customer_id')).toMatchObject({
+            sqlReferences: ['WHERE customer_id = 42'],
+            focusNodeId: '0:seq-scan:public-orders',
+            reasonableness: 'high_priority'
+        });
+        expect(result.findings.find((finding) => finding.title === 'No supporting index found for filter on public.orders.customer_id')?.reasonablenessExplanation).toContain('large row set');
+        expect(result.findings.find((finding) => finding.title === 'Wide projection via SELECT *')?.reasonableness).toBe('worth_investigating');
     });
 
     it('flags function predicates, leading wildcard LIKE, and missing join indexes', async () => {
@@ -115,6 +123,11 @@ describe('analyzeQuery', () => {
             'Join key public.orders.customer_id lacks obvious index support',
             'Join key public.customers.id lacks obvious index support'
         ]));
+        expect(result.findings.find((finding) => finding.title === 'Function-wrapped predicate on public.orders.email')?.sqlReferences).toEqual(["WHERE LOWER(o.email) = 'x' AND c.segment LIKE '%vip'"]);
+        expect(result.findings.find((finding) => finding.title === 'Join key public.orders.customer_id lacks obvious index support')?.sqlReferences).toEqual(["JOIN public.customers c ON o.customer_id = c.id", "WHERE LOWER(o.email) = 'x' AND c.segment LIKE '%vip'"]);
+        expect(result.findings.find((finding) => finding.title === 'Join key public.orders.customer_id lacks obvious index support')?.focusNodeId).toBe('0:nested-loop');
+        expect(result.findings.find((finding) => finding.title === 'Join key public.orders.customer_id lacks obvious index support')?.reasonableness).toBe('high_priority');
+        expect(result.findings.find((finding) => finding.title === 'Join key public.orders.customer_id lacks obvious index support')?.reasonablenessExplanation).toContain('large row set');
     });
 
     it('distinguishes a referenced composite index from a leading-column match', async () => {
@@ -189,6 +202,36 @@ describe('analyzeQuery', () => {
 
         expect(titles).not.toContain('No supporting index found for filter on public.orders.customer_id');
         expect(titles).not.toContain('Existing index order may not support filter on public.orders.customer_id');
+    });
+
+    it('downgrades reasonableness when the focused node pressure is low', async () => {
+        const executeTargetQueryRawSpy = vi.spyOn(executionService, 'executeTargetQueryRaw');
+
+        executeTargetQueryRawSpy
+            .mockResolvedValueOnce(createQueryResult([{
+                'QUERY PLAN': [{
+                    Plan: {
+                        'Node Type': 'Sort',
+                        'Plan Rows': 40,
+                        'Sort Key': ['created_at DESC'],
+                        Plans: [{
+                            'Node Type': 'Seq Scan',
+                            'Relation Name': 'orders',
+                            Schema: 'public',
+                            'Plan Rows': 40
+                        }]
+                    }
+                }]
+            }], 'EXPLAIN'))
+            .mockResolvedValueOnce(createQueryResult([], 'SELECT'))
+            .mockResolvedValueOnce(createQueryResult([createTableStatsRow('orders', 120000)], 'SELECT'));
+
+        const result = await analyzeQuery('SELECT * FROM public.orders ORDER BY created_at DESC');
+        const sortFinding = result.findings.find((finding) => finding.title === 'Large sort operation detected');
+
+        expect(sortFinding).toBeUndefined();
+        expect(result.findings.find((finding) => finding.title === 'Sort on public.orders.created_at has no obvious index support')?.reasonableness).toBe('likely_reasonable');
+        expect(result.findings.find((finding) => finding.title === 'Sort on public.orders.created_at has no obvious index support')?.reasonablenessExplanation).toContain('small row set');
     });
 
     it('flags sorts with no index support and distinguishes composite index order misalignment', async () => {
@@ -334,6 +377,9 @@ describe('analyzeQuery', () => {
             actualTotalTimeMs: 88.123,
             driftRatio: 50
         });
+        expect(driftFinding?.reasonableness).toBe('high_priority');
+        expect(driftFinding?.focusNodeId).toBe('0:seq-scan:public-orders');
+        expect(driftFinding?.reasonablenessExplanation).toContain('actual execution metrics');
         expect(
             executeTargetQueryRawSpy.mock.calls.some(([sql]) => String(sql).includes('EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)'))
         ).toBe(true);

@@ -1,4 +1,5 @@
 import { classifyIndexCoverage } from './queryAnalysisIndexMatching';
+import { getJoinSqlReferences } from './queryAnalysisFindingSqlReferences';
 import type { QueryAnalysisFinding, QueryAnalysisIndexMetadata, QueryAnalysisJoin, QueryAnalysisTableStats } from './types';
 import {
     formatEstimatedRowsEvidence,
@@ -8,6 +9,7 @@ import {
 } from './queryAnalysisTableStats';
 
 export function buildJoinFindings(
+    sql: string,
     joins: QueryAnalysisJoin[],
     indexes: QueryAnalysisIndexMetadata[],
     tableStats: QueryAnalysisTableStats[]
@@ -15,9 +17,9 @@ export function buildJoinFindings(
     const findings: QueryAnalysisFinding[] = [];
 
     for (const join of joins) {
-        if (join.leftTable && join.leftColumn) appendJoinCoverageFinding(findings, indexes, tableStats, join.leftTable, join.leftColumn);
+        if (join.leftTable && join.leftColumn) appendJoinCoverageFinding(findings, sql, indexes, tableStats, join, join.leftTable, join.leftColumn);
 
-        if (join.rightTable && join.rightColumn) appendJoinCoverageFinding(findings, indexes, tableStats, join.rightTable, join.rightColumn);
+        if (join.rightTable && join.rightColumn) appendJoinCoverageFinding(findings, sql, indexes, tableStats, join, join.rightTable, join.rightColumn);
     }
 
     return findings;
@@ -25,8 +27,10 @@ export function buildJoinFindings(
 
 function appendJoinCoverageFinding(
     findings: QueryAnalysisFinding[],
+    sql: string,
     indexes: QueryAnalysisIndexMetadata[],
     tableStats: QueryAnalysisTableStats[],
+    join: QueryAnalysisJoin,
     table: string,
     column: string
 ): void {
@@ -52,6 +56,7 @@ function appendJoinCoverageFinding(
                 ...rowEvidence
             ],
             evidenceSources: ['metadata', 'sql_shape'],
+            sqlReferences: getJoinSqlReferences(sql, join),
             suggestion: `If this join is performance-critical, consider an index that starts with ${column} on ${table}, or verify that the existing composite index order matches the access pattern.`,
             confidence: 'medium',
             isHeuristic: true
@@ -69,6 +74,7 @@ function appendJoinCoverageFinding(
             ...rowEvidence
         ],
         evidenceSources: ['metadata', 'sql_shape'],
+        sqlReferences: getJoinSqlReferences(sql, join),
         suggestion: `Review whether ${table}.${column} should be indexed to support the join pattern, especially on large tables or foreign-key style relationships.`,
         confidence: 'medium',
         isHeuristic: true

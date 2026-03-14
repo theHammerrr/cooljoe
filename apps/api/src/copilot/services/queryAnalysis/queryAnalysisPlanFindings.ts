@@ -27,6 +27,7 @@ export function appendPlanNodeFindings(
             title: 'Large sort operation detected',
             evidence: [`Planner expects to sort approximately ${node.planRows} rows.`, ...(node.sortKey?.length ? [`Sort keys: ${node.sortKey.join(', ')}`] : [])],
             evidenceSources: ['plan'],
+            sqlReferences: node.sqlReferences,
             suggestion: 'Reduce the row set before sorting, or align filtering and ordering with an existing index when possible.',
             confidence: 'medium',
             isHeuristic: true
@@ -40,6 +41,7 @@ export function appendPlanNodeFindings(
             title: 'Nested loop over a large estimated row set',
             evidence: [`Planner expects approximately ${node.planRows} rows through this nested loop.`],
             evidenceSources: ['plan'],
+            sqlReferences: node.sqlReferences,
             suggestion: 'Review join selectivity and supporting indexes on join keys. Large nested loops often indicate missing indexes or filters applied too late.',
             confidence: 'medium',
             isHeuristic: true
@@ -82,6 +84,7 @@ function appendSequentialScanFinding(
         title: `Sequential scan on ${qualifiedTable}`,
         evidence,
         evidenceSources: relatedIndexes.length > 0 ? ['plan', 'metadata'] : ['plan'],
+        sqlReferences: node.sqlReferences,
         suggestion: relatedIndexes.length > 0
             ? `Check whether the predicate shape can use an existing index on ${qualifiedTable}, or simplify expressions/casts in the filter.`
             : `Consider adding an index that supports the filter or join predicates on ${qualifiedTable}.`,

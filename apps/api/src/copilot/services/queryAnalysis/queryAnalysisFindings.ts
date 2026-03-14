@@ -10,6 +10,8 @@ import { buildIndexFindings } from './queryAnalysisIndexRules';
 import { buildSortFindings } from './queryAnalysisSortRules';
 import { appendPlanNodeFindings, flattenPlan } from './queryAnalysisPlanFindings';
 import { buildRuntimeFindings } from './queryAnalysisRuntimeAnalysis';
+import { getSelectSqlReferences } from './queryAnalysisFindingSqlReferences';
+import { attachFindingPresentation } from './queryAnalysisFindingPresentation';
 
 export function buildAnalysisFindings(
     normalizedSql: string,
@@ -31,6 +33,7 @@ export function buildAnalysisFindings(
             title: 'Wide projection via SELECT *',
             evidence: ['The query selects every column, which can increase I/O and row width unnecessarily.'],
             evidenceSources: ['sql_shape'],
+            sqlReferences: getSelectSqlReferences(normalizedSql),
             suggestion: 'Project only the columns needed by the result set to reduce row width and memory pressure.',
             confidence: 'high',
             isHeuristic: false
@@ -41,11 +44,11 @@ export function buildAnalysisFindings(
         appendPlanNodeFindings(findings, node, indexes, tableStats);
     }
 
-    findings.push(...buildIndexFindings(predicates, joins, indexes, tableStats));
-    findings.push(...buildSortFindings(sorts, predicates, indexes, tableStats));
+    findings.push(...buildIndexFindings(normalizedSql, predicates, joins, indexes, tableStats));
+    findings.push(...buildSortFindings(normalizedSql, sorts, predicates, indexes, tableStats));
     findings.push(...buildRuntimeFindings(planNodes, mode));
 
-    return dedupeFindings(findings);
+    return attachFindingPresentation(dedupeFindings(findings), planNodes);
 }
 
 function dedupeFindings(findings: QueryAnalysisFinding[]): QueryAnalysisFinding[] {

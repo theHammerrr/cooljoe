@@ -48,6 +48,7 @@ function appendEstimateDriftFinding(findings: QueryAnalysisFinding[], node: Quer
             `Planner estimates differ from observed execution by about ${driftRatio.toFixed(1)}x.`
         ],
         evidenceSources: ['plan'],
+        sqlReferences: node.sqlReferences,
         runtimeContext: {
             nodeId: node.nodeId,
             nodeType: node.nodeType,
