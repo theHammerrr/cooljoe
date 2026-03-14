@@ -47,7 +47,52 @@ describe('analyzeQuery', () => {
         expect(result.indexes).toHaveLength(1);
         expect(result.findings.map((finding) => finding.title)).toEqual(expect.arrayContaining([
             'Wide projection via SELECT *',
-            'Sequential scan on public.orders'
+            'Sequential scan on public.orders',
+            'No supporting index found for filter on public.orders.customer_id'
+        ]));
+    });
+
+    it('flags function predicates, leading wildcard LIKE, and missing join indexes', async () => {
+        const executeTargetQueryRawSpy = vi.spyOn(executionService, 'executeTargetQueryRaw');
+
+        executeTargetQueryRawSpy
+            .mockResolvedValueOnce(createQueryResult([{
+                'QUERY PLAN': [{
+                    Plan: {
+                        'Node Type': 'Nested Loop',
+                        'Plan Rows': 1400,
+                        Plans: [
+                            {
+                                'Node Type': 'Seq Scan',
+                                'Relation Name': 'orders',
+                                Schema: 'public',
+                                'Plan Rows': 1400,
+                                Filter: "(lower(email) = 'x'::text)"
+                            }
+                        ]
+                    }
+                }]
+            }], 'EXPLAIN'))
+            .mockResolvedValueOnce(createQueryResult([{
+                schema_name: 'public',
+                table_name: 'orders',
+                index_name: 'orders_status_idx',
+                access_method: 'btree',
+                is_primary: false,
+                is_unique: false,
+                columns: ['status'],
+                definition: 'CREATE INDEX orders_status_idx ON public.orders USING btree (status)'
+            }], 'SELECT'));
+
+        const result = await analyzeQuery(
+            "SELECT * FROM public.orders o JOIN public.customers c ON o.customer_id = c.id WHERE LOWER(o.email) = 'x' AND c.segment LIKE '%vip'"
+        );
+
+        expect(result.findings.map((finding) => finding.title)).toEqual(expect.arrayContaining([
+            'Function-wrapped predicate on public.orders.email',
+            'Leading wildcard LIKE on public.customers.segment',
+            'Join key public.orders.customer_id lacks obvious index support',
+            'Join key public.customers.id lacks obvious index support'
         ]));
     });
 });

@@ -42,6 +42,21 @@ export interface QueryAnalysisFinding {
     isHeuristic: boolean;
 }
 
+export interface QueryAnalysisPredicate {
+    table?: string;
+    column?: string;
+    operator: string;
+    usesFunction: boolean;
+    hasLeadingWildcard: boolean;
+}
+
+export interface QueryAnalysisJoin {
+    leftTable?: string;
+    leftColumn?: string;
+    rightTable?: string;
+    rightColumn?: string;
+}
+
 export interface QueryAnalysisResult {
     mode: QueryAnalysisMode;
     normalizedSql: string;

@@ -1,4 +1,6 @@
 import type { QueryAnalysisFinding, QueryAnalysisIndexMetadata, QueryAnalysisPlanNode } from './types';
+import { extractQueryJoins, extractQueryPredicates } from './queryAnalysisAst';
+import { buildIndexFindings } from './queryAnalysisIndexRules';
 
 export function buildAnalysisFindings(
     normalizedSql: string,
@@ -7,6 +9,8 @@ export function buildAnalysisFindings(
 ): QueryAnalysisFinding[] {
     const findings: QueryAnalysisFinding[] = [];
     const planNodes = flattenPlan(rawPlan);
+    const predicates = extractQueryPredicates(normalizedSql);
+    const joins = extractQueryJoins(normalizedSql);
 
     if (/\bselect\s+\*/i.test(normalizedSql)) {
         findings.push({
@@ -23,6 +27,8 @@ export function buildAnalysisFindings(
     for (const node of planNodes) {
         appendNodeFindings(findings, node, indexes);
     }
+
+    findings.push(...buildIndexFindings(predicates, joins, indexes));
 
     return dedupeFindings(findings);
 }
