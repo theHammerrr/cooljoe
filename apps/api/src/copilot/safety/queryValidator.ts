@@ -1,4 +1,4 @@
-import { Parser } from 'node-sql-parser';
+import { AST, Parser } from 'node-sql-parser';
 import { AstSelectStatement, isAstSelectStatement, toAstStatementArray } from './sqlAstTypes';
 
 const parser = new Parser();
@@ -65,18 +65,25 @@ function extractTablesFromAst(astNodes: unknown[]): string[] {
     return Array.from(tables);
 }
 
-export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimit = 100): string {
+export function parseQueryAst(sql: string): AST | AST[] {
     const normalizedSql = normalizeQuotedSchemaTableIdentifiers(sql);
 
-    // Parse AST
-    let ast;
-
     try {
-        ast = parser.astify(normalizedSql, { database: 'Postgresql' });
+        return parser.astify(normalizedSql, { database: 'Postgresql' });
     } catch (error: unknown) {
         const parseMessage = error instanceof Error ? error.message : 'Unknown Parser Error';
         throw new SQLSyntaxError(parseMessage);
     }
+}
+
+export function extractReferencedTablesFromQuery(sql: string): string[] {
+    const ast = parseQueryAst(sql);
+
+    return extractTablesFromAst(toAstStatementArray(ast));
+}
+
+export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimit = 100): string {
+    const ast = parseQueryAst(sql);
 
     const astArray = toAstStatementArray(ast);
     const tableList = extractTablesFromAst(astArray);
@@ -116,5 +123,5 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
     }
 
     // Stringify the modified AST back to safely constructed SQL
-    return parser.sqlify(ast, { database: 'Postgresql' });
+    return parser.sqlify(ast as AST | AST[], { database: 'Postgresql' });
 }
