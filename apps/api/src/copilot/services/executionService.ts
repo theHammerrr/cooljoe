@@ -1,4 +1,4 @@
-import { Pool } from 'pg';
+import { Pool, QueryResultRow } from 'pg';
 
 let pool: Pool | null = null;
 
@@ -34,11 +34,8 @@ function getTargetPool(): Pool {
 }
 
 export const executeTargetQuery = async (safeSql: string) => {
-    const targetPool = getTargetPool();
     const startTime = Date.now();
-
-    // Execute exclusively on the target PG pool, bypassing Prisma App DB
-    const result = await targetPool.query(safeSql);
+    const result = await executeTargetQueryRaw(safeSql);
     const runtimeMs = Date.now() - startTime;
 
     return {
@@ -46,6 +43,13 @@ export const executeTargetQuery = async (safeSql: string) => {
         runtimeMs,
         rowCount: result.rowCount || 0
     };
+};
+
+export const executeTargetQueryRaw = async <TRow extends QueryResultRow = QueryResultRow>(sql: string, values?: unknown[]) => {
+    const targetPool = getTargetPool();
+
+    // Execute exclusively on the target PG pool, bypassing Prisma App DB
+    return targetPool.query<TRow>(sql, values);
 };
 
 export const explainTargetQuery = async (safeSql: string): Promise<ExplainTargetQueryResult> => {

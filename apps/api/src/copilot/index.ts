@@ -11,6 +11,7 @@ import { chat, chatStream } from './controllers/chat';
 import { allowTable } from './controllers/allowTable';
 import { getAllowedTables } from './controllers/getAllowedTables';
 import { removeTable } from './controllers/removeTable';
+import { analyzeQuery } from './controllers/analyzeQuery';
 
 const router = Router();
 
@@ -30,6 +31,7 @@ router.post('/draft-query-token', issueDraftQueryToken);
 router.get('/draft-query-status/:requestId/stream', draftQueryStatusStream);
 router.get('/draft-query-status/:requestId', draftQueryStatus);
 router.post('/run-query', runQuery);
+router.post('/analyze-query', analyzeQuery);
 router.post('/explain-results', explainResults);
 router.post('/accept-query', acceptQuery);
 router.post('/export-excel', exportExcel);

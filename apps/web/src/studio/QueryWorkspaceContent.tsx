@@ -1,9 +1,12 @@
 import { QueryWorkspaceEditor } from './QueryWorkspaceEditor';
 import { QueryWorkspaceResultsPane } from './QueryWorkspaceResultsPane';
 import { QueryWorkspaceSplitHandle } from './QueryWorkspaceSplitHandle';
+import type { QueryAnalysisResult } from '../api/copilot/useAnalyzeQuery';
 
 interface QueryWorkspaceContentProps {
     activeTab: 'sql' | 'prisma';
+    analysisError: string | null;
+    analysisResult: QueryAnalysisResult | null;
     approvalTable: string | null;
     editorHeight: number;
     effectivePrisma: string;
@@ -11,6 +14,7 @@ interface QueryWorkspaceContentProps {
     isAllowing: boolean;
     onAdjustEditorHeight: (delta: number) => void;
     onApprove: () => void;
+    onClearAnalysis: () => void;
     onClearResults: () => void;
     onEditorValueChange: (code: string) => void;
     onResizeEditor: (event: React.MouseEvent<HTMLDivElement>) => void;
@@ -21,6 +25,8 @@ interface QueryWorkspaceContentProps {
 
 export function QueryWorkspaceContent({
     activeTab,
+    analysisError,
+    analysisResult,
     approvalTable,
     editorHeight,
     effectivePrisma,
@@ -28,6 +34,7 @@ export function QueryWorkspaceContent({
     isAllowing,
     onAdjustEditorHeight,
     onApprove,
+    onClearAnalysis,
     onClearResults,
     onEditorValueChange,
     onResizeEditor,
@@ -49,9 +56,12 @@ export function QueryWorkspaceContent({
                 <div className="flex-1 overflow-hidden p-6 flex flex-col min-h-0">
                     <QueryWorkspaceResultsPane
                         activeTab={activeTab}
+                        analysisError={analysisError}
+                        analysisResult={analysisResult}
                         approvalTable={approvalTable}
                         isAllowing={isAllowing}
                         onApprove={onApprove}
+                        onClearAnalysis={onClearAnalysis}
                         runError={runError}
                         tableResults={tableResults}
                         onClearResults={onClearResults}

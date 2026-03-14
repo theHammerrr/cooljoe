@@ -123,5 +123,5 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
     }
 
     // Stringify the modified AST back to safely constructed SQL
-    return parser.sqlify(ast as AST | AST[], { database: 'Postgresql' });
+    return parser.sqlify(ast, { database: 'Postgresql' });
 }
