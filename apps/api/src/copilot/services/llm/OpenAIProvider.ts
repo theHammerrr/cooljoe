@@ -1,4 +1,4 @@
-import { AIProvider } from './AIProvider';
+import { AIProvider, type QueryAnalysisSummaryInput } from './AIProvider';
 import OpenAI, { ClientOptions } from 'openai';
 import { buildChatSystemPrompt, buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
 import { parseDraftResponse, parseExplanationResponse } from './responseParsers';
@@ -96,7 +96,7 @@ export class OpenAIProvider implements AIProvider {
         return parseExplanationResponse(response.choices[0].message.content);
     }
 
-    async generateQueryAnalysisSummary(input: { sql: string; findings: unknown[]; rawPlan: unknown; schema: unknown }) {
+    async generateQueryAnalysisSummary(input: QueryAnalysisSummaryInput) {
         return buildOpenAiQueryAnalysisSummary(this.openai, this.model, input);
     }
 

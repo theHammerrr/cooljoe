@@ -1,13 +1,14 @@
 import OpenAI from 'openai';
-import { buildQueryAnalysisSummaryPrompt } from './promptBuilders';
+import type { QueryAnalysisSummaryInput } from './AIProvider';
+import { buildQueryAnalysisOptimizationPrompt } from './queryAnalysisOptimizationPrompt';
 import { parseQueryAnalysisSummaryResponse } from './responseParsers';
 
 export async function buildOpenAiQueryAnalysisSummary(
     openai: OpenAI,
     model: string,
-    input: { sql: string; findings: unknown[]; rawPlan: unknown; schema: unknown }
+    input: QueryAnalysisSummaryInput
 ) {
-    const prompt = buildQueryAnalysisSummaryPrompt(input);
+    const prompt = buildQueryAnalysisOptimizationPrompt(input);
     const response = await openai.chat.completions.create({
         model,
         response_format: { type: 'json_object' },

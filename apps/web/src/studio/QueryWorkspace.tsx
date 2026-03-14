@@ -1,9 +1,10 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { QueryAnalysisMode } from '../api/copilot/useAnalyzeQuery';
 import { useAllowTable } from '../api/copilot/useAllowTable';
 import { QueryWorkspaceContent } from './QueryWorkspaceContent';
 import { QueryWorkspaceFooter } from './QueryWorkspaceFooter';
 import { QueryWorkspaceHeader } from './QueryWorkspaceHeader';
+import { loadAiSummaryPreference, saveAiSummaryPreference } from './queryAnalysisPreferences';
 import { useQueryWorkspaceQueries } from './useQueryWorkspaceQueries';
 import { useWorkspaceSplitSizing } from './useWorkspaceSplitSizing';
 
@@ -18,6 +19,7 @@ interface QueryWorkspaceProps {
 export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabChange, onResetInjected }: QueryWorkspaceProps) {
     const splitContainerRef = useRef<HTMLDivElement | null>(null);
     const [analysisMode, setAnalysisMode] = useState<QueryAnalysisMode>('explain');
+    const [includeAiSummary, setIncludeAiSummary] = useState(() => loadAiSummaryPreference());
     const [sql, setSql] = useState<string>('SELECT * FROM public.users LIMIT 10;');
     const [prismaJs, setPrismaJs] = useState<string>('prisma.users.findMany({\n  take: 10\n})');
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
@@ -25,6 +27,10 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabCh
     const effectiveSql = injectedSql || sql;
     const effectivePrisma = injectedPrisma || prismaJs;
     const queryState = useQueryWorkspaceQueries(activeTab, effectiveSql, effectivePrisma);
+
+    useEffect(() => {
+        saveAiSummaryPreference(includeAiSummary);
+    }, [includeAiSummary]);
 
     const handleApprove = () => {
         if (!queryState.approvalTable) return;
@@ -57,7 +63,7 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabCh
             return;
         }
 
-        queryState.handleAnalyze(analysisMode);
+        queryState.handleAnalyze(analysisMode, includeAiSummary);
     };
 
     return (
@@ -65,8 +71,10 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabCh
             <QueryWorkspaceHeader
                 activeTab={activeTab}
                 analysisMode={analysisMode}
+                includeAiSummary={includeAiSummary}
                 onTabChange={onTabChange}
                 onAnalysisModeChange={setAnalysisMode}
+                onIncludeAiSummaryChange={setIncludeAiSummary}
                 onRun={queryState.handleRun}
                 onAnalyze={handleAnalyze}
                 isRunning={queryState.isRunning}

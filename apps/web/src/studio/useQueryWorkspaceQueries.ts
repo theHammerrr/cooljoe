@@ -40,12 +40,12 @@ export function useQueryWorkspaceQueries(activeTab: 'sql' | 'prisma', effectiveS
         });
     };
 
-    const handleAnalyze = (mode: QueryAnalysisMode) => {
+    const handleAnalyze = (mode: QueryAnalysisMode, includeAiSummary: boolean) => {
         if (activeTab !== 'sql' || !effectiveSql.trim()) return;
         setApprovalTable(null);
         setRunError(null);
         setAnalysisError(null);
-        analyzeQuery({ query: effectiveSql, mode }, {
+        analyzeQuery({ query: effectiveSql, mode, includeAiSummary }, {
             onSuccess: (result) => {
                 setTableResults(null);
                 setAnalysisResult(result);

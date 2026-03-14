@@ -11,6 +11,16 @@ export interface QueryAnalysisSummaryResponse {
     suggestions: string[];
 }
 
+export interface QueryAnalysisSummaryInput {
+    sql: string;
+    findings: QueryAnalysisFinding[];
+    rawPlan: QueryAnalysisPlanNode;
+    indexes: unknown[];
+    tableStats: unknown[];
+    safetyNotes: string[];
+    schema: unknown;
+}
+
 export interface AIProvider {
     generateDraftQuery(question: string, context: Record<string, unknown>): Promise<LogicalQueryPlan>;
     generateChatResponse?(prompt: string, context?: unknown): Promise<string>;
@@ -20,11 +30,6 @@ export interface AIProvider {
         onChunk: (chunk: string) => void
     ): Promise<string>;
     generateExplanation(question: string, sql: string, dataSample: unknown[], schema: unknown): Promise<ExplanationResponse>;
-    generateQueryAnalysisSummary?(input: {
-        sql: string;
-        findings: QueryAnalysisFinding[];
-        rawPlan: QueryAnalysisPlanNode;
-        schema: unknown;
-    }): Promise<QueryAnalysisSummaryResponse>;
+    generateQueryAnalysisSummary?(input: QueryAnalysisSummaryInput): Promise<QueryAnalysisSummaryResponse>;
     generateEmbeddings(texts: string[]): Promise<number[][]>;
 }

@@ -1,13 +1,14 @@
 import type { Ollama } from 'ollama';
-import { buildQueryAnalysisSummaryPrompt } from './promptBuilders';
+import type { QueryAnalysisSummaryInput } from './AIProvider';
+import { buildQueryAnalysisOptimizationPrompt } from './queryAnalysisOptimizationPrompt';
 import { parseQueryAnalysisSummaryResponse } from './responseParsers';
 
 export async function buildOllamaQueryAnalysisSummary(
     ollama: Ollama,
     model: string,
-    input: { sql: string; findings: unknown[]; rawPlan: unknown; schema: unknown }
+    input: QueryAnalysisSummaryInput
 ) {
-    const prompt = buildQueryAnalysisSummaryPrompt(input);
+    const prompt = buildQueryAnalysisOptimizationPrompt(input);
     const response = await ollama.chat({
         model,
         format: 'json',

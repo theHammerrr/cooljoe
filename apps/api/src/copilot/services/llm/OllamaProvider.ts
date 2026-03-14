@@ -1,4 +1,4 @@
-import { AIProvider } from './AIProvider';
+import { AIProvider, type QueryAnalysisSummaryInput } from './AIProvider';
 import { Ollama } from 'ollama';
 import { buildChatSystemPrompt, buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
 import { parseDraftResponse, parseExplanationResponse } from './responseParsers';
@@ -89,7 +89,7 @@ export class OllamaProvider implements AIProvider {
         return parseExplanationResponse(response.message.content);
     }
 
-    async generateQueryAnalysisSummary(input: { sql: string; findings: unknown[]; rawPlan: unknown; schema: unknown }) {
+    async generateQueryAnalysisSummary(input: QueryAnalysisSummaryInput) {
         return buildOllamaQueryAnalysisSummary(this.ollama, this.model, input);
     }
 

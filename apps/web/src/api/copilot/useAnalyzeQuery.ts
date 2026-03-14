@@ -7,11 +7,11 @@ export type { QueryAnalysisFinding, QueryAnalysisMode, QueryAnalysisResult } fro
 
 export const useAnalyzeQuery = () => {
     return useMutation({
-        mutationFn: async ({ query, mode = 'explain' }: AnalyzeQueryParams): Promise<QueryAnalysisResult> => {
+        mutationFn: async ({ query, mode = 'explain', includeAiSummary = false }: AnalyzeQueryParams): Promise<QueryAnalysisResult> => {
             const response = await fetch(`${API_BASE_URL}/api/copilot/analyze-query`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query, mode, includeAiSummary: true })
+                body: JSON.stringify({ query, mode, includeAiSummary })
             });
             const payload = await response.json().catch(() => ({}));
 

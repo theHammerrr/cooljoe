@@ -47,7 +47,7 @@ export function QueryAnalysisResultsPane({ analysis, analysisError, onClear }: Q
 
             <div className="grid min-h-0 flex-1 gap-4 overflow-auto xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)]">
                 <div className="space-y-4">
-                    <QueryAnalysisAiSummarySection aiSummary={analysis.aiSummary} />
+                    <QueryAnalysisAiSummarySection aiSummary={analysis.aiSummary} analysis={analysis} />
                     <QueryAnalysisFindingsSection
                         findings={analysis.findings}
                         onSelectNode={setSelectedNodeId}
