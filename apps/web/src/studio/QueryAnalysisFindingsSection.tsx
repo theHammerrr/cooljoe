@@ -33,6 +33,22 @@ export function QueryAnalysisFindingsSection({ findings }: QueryAnalysisFindings
                                 {finding.severity}
                             </span>
                         </div>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                            {finding.evidenceSources.map((source) => (
+                                <span
+                                    key={source}
+                                    className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ${
+                                        source === 'plan'
+                                            ? 'border border-emerald-500/20 bg-emerald-500/10 text-emerald-100'
+                                            : source === 'metadata'
+                                                ? 'border border-cyan-500/20 bg-cyan-500/10 text-cyan-100'
+                                                : 'border border-violet-500/20 bg-violet-500/10 text-violet-100'
+                                    }`}
+                                >
+                                    {getEvidenceSourceLabel(source)}
+                                </span>
+                            ))}
+                        </div>
                         <ul className="mt-3 space-y-1 text-sm text-slate-300">
                             {finding.evidence.map((item) => <li key={item}>{item}</li>)}
                         </ul>
@@ -44,4 +60,12 @@ export function QueryAnalysisFindingsSection({ findings }: QueryAnalysisFindings
             </div>
         </section>
     );
+}
+
+function getEvidenceSourceLabel(source: QueryAnalysisFinding['evidenceSources'][number]): string {
+    if (source === 'plan') return 'Plan Evidence';
+
+    if (source === 'metadata') return 'Metadata Inference';
+
+    return 'SQL Shape';
 }

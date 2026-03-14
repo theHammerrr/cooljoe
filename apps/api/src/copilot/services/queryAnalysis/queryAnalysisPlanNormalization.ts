@@ -14,6 +14,10 @@ export function normalizePlanNode(value: unknown): QueryAnalysisPlanNode {
         totalCost: getNumber(source, 'Total Cost'),
         planRows: getNumber(source, 'Plan Rows'),
         planWidth: getNumber(source, 'Plan Width'),
+        actualStartupTime: getNumber(source, 'Actual Startup Time'),
+        actualTotalTime: getNumber(source, 'Actual Total Time'),
+        actualRows: getNumber(source, 'Actual Rows'),
+        actualLoops: getNumber(source, 'Actual Loops'),
         filter: getString(source, 'Filter'),
         indexName: getString(source, 'Index Name'),
         indexCond: getString(source, 'Index Cond'),
@@ -23,7 +27,31 @@ export function normalizePlanNode(value: unknown): QueryAnalysisPlanNode {
         joinFilter: getString(source, 'Join Filter'),
         joinType: getString(source, 'Join Type'),
         sortKey: Array.isArray(sortKey) ? sortKey.filter((item): item is string => typeof item === 'string') : undefined,
+        buffers: normalizePlanBuffers(source),
         plans: Array.isArray(plans) ? plans.map((entry) => normalizePlanNode(entry)) : []
+    };
+}
+
+function normalizePlanBuffers(value: object): QueryAnalysisPlanNode['buffers'] {
+    const sharedHitBlocks = getNumber(value, 'Shared Hit Blocks');
+    const sharedReadBlocks = getNumber(value, 'Shared Read Blocks');
+    const tempReadBlocks = getNumber(value, 'Temp Read Blocks');
+    const tempWrittenBlocks = getNumber(value, 'Temp Written Blocks');
+
+    if (
+        sharedHitBlocks === undefined
+        && sharedReadBlocks === undefined
+        && tempReadBlocks === undefined
+        && tempWrittenBlocks === undefined
+    ) {
+        return undefined;
+    }
+
+    return {
+        sharedHitBlocks,
+        sharedReadBlocks,
+        tempReadBlocks,
+        tempWrittenBlocks
     };
 }
 

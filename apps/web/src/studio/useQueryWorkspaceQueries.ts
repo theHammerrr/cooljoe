@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useAnalyzeQuery, type QueryAnalysisResult } from '../api/copilot/useAnalyzeQuery';
+import { useAnalyzeQuery, type QueryAnalysisMode, type QueryAnalysisResult } from '../api/copilot/useAnalyzeQuery';
 import { useRunQuery } from '../api/copilot/useRunQuery';
 
 export function useQueryWorkspaceQueries(activeTab: 'sql' | 'prisma', effectiveSql: string, effectivePrisma: string) {
@@ -40,12 +40,12 @@ export function useQueryWorkspaceQueries(activeTab: 'sql' | 'prisma', effectiveS
         });
     };
 
-    const handleAnalyze = () => {
+    const handleAnalyze = (mode: QueryAnalysisMode) => {
         if (activeTab !== 'sql' || !effectiveSql.trim()) return;
         setApprovalTable(null);
         setRunError(null);
         setAnalysisError(null);
-        analyzeQuery({ query: effectiveSql, mode: 'explain' }, {
+        analyzeQuery({ query: effectiveSql, mode }, {
             onSuccess: (result) => {
                 setTableResults(null);
                 setAnalysisResult(result);

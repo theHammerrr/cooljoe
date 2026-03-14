@@ -1,6 +1,10 @@
+import { QueryAnalysisModeToggle } from './QueryAnalysisModeToggle';
+
 interface QueryWorkspaceHeaderProps {
     activeTab: 'sql' | 'prisma';
+    analysisMode: 'explain' | 'explain_analyze';
     onTabChange: (tab: 'sql' | 'prisma') => void;
+    onAnalysisModeChange: (mode: 'explain' | 'explain_analyze') => void;
     onRun: () => void;
     onAnalyze: () => void;
     isRunning: boolean;
@@ -9,7 +13,18 @@ interface QueryWorkspaceHeaderProps {
     canAnalyze: boolean;
 }
 
-export function QueryWorkspaceHeader({ activeTab, onTabChange, onRun, onAnalyze, isRunning, isAnalyzing, canRun, canAnalyze }: QueryWorkspaceHeaderProps) {
+export function QueryWorkspaceHeader({
+    activeTab,
+    analysisMode,
+    onTabChange,
+    onAnalysisModeChange,
+    onRun,
+    onAnalyze,
+    isRunning,
+    isAnalyzing,
+    canRun,
+    canAnalyze
+}: QueryWorkspaceHeaderProps) {
     return (
         <div className="bg-[#161b22]/80 backdrop-blur-md border-b border-white/5 p-1.5 flex justify-between items-center px-4 sticky top-0 z-10 shrink-0">
             <div className="flex items-center p-1 bg-black/20 rounded-lg border border-white/5">
@@ -38,6 +53,8 @@ export function QueryWorkspaceHeader({ activeTab, onTabChange, onRun, onAnalyze,
             </div>
             
             <div className="flex items-center gap-4">
+                <QueryAnalysisModeToggle analysisMode={analysisMode} onAnalysisModeChange={onAnalysisModeChange} />
+
                 {isRunning && (
                     <div className="flex items-center gap-2 px-3 py-1 bg-emerald-500/5 border border-emerald-500/10 rounded-full">
                         <div className="flex gap-1">
@@ -55,13 +72,15 @@ export function QueryWorkspaceHeader({ activeTab, onTabChange, onRun, onAnalyze,
                     className={`group relative px-5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all duration-300 active:scale-95 disabled:opacity-20 flex items-center gap-2.5 ${
                         activeTab === 'prisma'
                             ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
-                            : 'bg-cyan-500 hover:bg-cyan-400 text-cyan-950 shadow-[0_0_20px_rgba(34,211,238,0.18)] hover:shadow-[0_0_25px_rgba(34,211,238,0.24)]'
+                            : analysisMode === 'explain_analyze'
+                                ? 'bg-amber-400 hover:bg-amber-300 text-amber-950 shadow-[0_0_20px_rgba(251,191,36,0.18)] hover:shadow-[0_0_25px_rgba(251,191,36,0.24)]'
+                                : 'bg-cyan-500 hover:bg-cyan-400 text-cyan-950 shadow-[0_0_20px_rgba(34,211,238,0.18)] hover:shadow-[0_0_25px_rgba(34,211,238,0.24)]'
                     }`}
                 >
                     <svg className={`w-3.5 h-3.5 transition-transform duration-500 ${isAnalyzing ? 'animate-pulse' : 'group-hover:translate-y-0.5'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 17l3 3 3-3M12 12v8M5 3h14l-1 6H6L5 3zm1.5 6h11"></path>
                     </svg>
-                    <span>{isAnalyzing ? 'Analyzing' : 'Analyze'}</span>
+                    <span>{isAnalyzing ? 'Analyzing' : analysisMode === 'explain_analyze' ? 'Run Analyze' : 'Analyze'}</span>
                 </button>
 
                 <button 

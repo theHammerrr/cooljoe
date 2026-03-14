@@ -1,6 +1,6 @@
 import { toAstStatementArray } from '../../safety/sqlAstTypes';
 import { parseQueryAst } from '../../safety/queryValidator';
-import type { QueryAnalysisJoin, QueryAnalysisPredicate } from './types';
+import type { QueryAnalysisJoin, QueryAnalysisPredicate, QueryAnalysisSort } from './types';
 
 interface Scope {
     aliases: Map<string, string>;
@@ -23,6 +23,14 @@ export function extractQueryJoins(sql: string): QueryAnalysisJoin[] {
         const scope = createScope(statement);
 
         return scope.entries.flatMap((entry) => collectJoin(readValue(entry, 'on'), scope));
+    });
+}
+
+export function extractQuerySorts(sql: string): QueryAnalysisSort[] {
+    return toAstStatementArray(parseQueryAst(sql)).flatMap((statement) => {
+        const scope = createScope(statement);
+
+        return readArray(readValue(statement, 'orderby')).flatMap((entry) => collectSort(entry, scope));
     });
 }
 
@@ -71,6 +79,19 @@ function collectJoin(node: unknown, scope: Scope): QueryAnalysisJoin[] {
     if (!left.column || !right.column) return [];
 
     return [{ leftTable: left.table, leftColumn: left.column, rightTable: right.table, rightColumn: right.column }];
+}
+
+function collectSort(node: unknown, scope: Scope): QueryAnalysisSort[] {
+    const expr = readValue(node, 'expr');
+    const sortRef = extractColumnRef(expr, scope, false);
+
+    if (!sortRef.column) return [];
+
+    return [{
+        table: sortRef.table,
+        column: sortRef.column,
+        direction: readString(readValue(node, 'type')) === 'DESC' ? 'DESC' : 'ASC'
+    }];
 }
 
 function extractColumnRef(node: unknown, scope: Scope, usesFunction: boolean): { table?: string; column?: string; usesFunction: boolean } {

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import type { QueryAnalysisMode } from '../api/copilot/useAnalyzeQuery';
 import { useAllowTable } from '../api/copilot/useAllowTable';
 import { QueryWorkspaceContent } from './QueryWorkspaceContent';
 import { QueryWorkspaceFooter } from './QueryWorkspaceFooter';
@@ -16,6 +17,7 @@ interface QueryWorkspaceProps {
 
 export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabChange, onResetInjected }: QueryWorkspaceProps) {
     const splitContainerRef = useRef<HTMLDivElement | null>(null);
+    const [analysisMode, setAnalysisMode] = useState<QueryAnalysisMode>('explain');
     const [sql, setSql] = useState<string>('SELECT * FROM public.users LIMIT 10;');
     const [prismaJs, setPrismaJs] = useState<string>('prisma.users.findMany({\n  take: 10\n})');
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
@@ -47,13 +49,26 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabCh
         setPrismaJs(code);
     };
 
+    const handleAnalyze = () => {
+        if (
+            analysisMode === 'explain_analyze'
+            && !window.confirm('EXPLAIN ANALYZE executes the query. Continue with execution-backed analysis?')
+        ) {
+            return;
+        }
+
+        queryState.handleAnalyze(analysisMode);
+    };
+
     return (
         <div className="flex flex-col h-full flex-1 min-w-0 bg-[#0d1117] font-sans text-slate-300 selection:bg-blue-500/30">
             <QueryWorkspaceHeader
                 activeTab={activeTab}
+                analysisMode={analysisMode}
                 onTabChange={onTabChange}
+                onAnalysisModeChange={setAnalysisMode}
                 onRun={queryState.handleRun}
-                onAnalyze={queryState.handleAnalyze}
+                onAnalyze={handleAnalyze}
                 isRunning={queryState.isRunning}
                 isAnalyzing={queryState.isAnalyzing}
                 canRun={!!(activeTab === 'sql' ? effectiveSql.trim() : effectivePrisma.trim())}

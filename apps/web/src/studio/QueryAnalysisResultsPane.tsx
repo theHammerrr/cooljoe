@@ -20,7 +20,7 @@ export function QueryAnalysisResultsPane({ analysis, analysisError, onClear }: Q
                 <div>
                     <p className="text-[10px] font-black uppercase tracking-[0.25em] text-cyan-300/80">Query Analysis</p>
                     <p className="mt-1 text-sm text-slate-300">
-                        {analysis.findings.length} finding{analysis.findings.length === 1 ? '' : 's'} across {analysis.referencedTables.length} table{analysis.referencedTables.length === 1 ? '' : 's'}.
+                        {analysis.findings.length} finding{analysis.findings.length === 1 ? '' : 's'} across {analysis.referencedTables.length} table{analysis.referencedTables.length === 1 ? '' : 's'} in {analysis.mode === 'explain_analyze' ? 'execution-backed' : 'planner-only'} mode.
                     </p>
                 </div>
                 <button
@@ -31,6 +31,11 @@ export function QueryAnalysisResultsPane({ analysis, analysisError, onClear }: Q
                     Clear
                 </button>
             </div>
+            {analysis.safetyNotes.map((note) => (
+                <div key={note} className="rounded-lg border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+                    {note}
+                </div>
+            ))}
 
             <div className="grid min-h-0 flex-1 gap-4 overflow-auto xl:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)]">
                 <div className="space-y-4">

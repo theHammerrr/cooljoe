@@ -1,11 +1,14 @@
 export type QueryAnalysisMode = 'explain' | 'explain_analyze';
-export type QueryAnalysisEvidenceSource = 'plan' | 'metadata' | 'sql_shape';
 
-export interface QueryAnalysisPlanBuffers {
-    sharedHitBlocks?: number;
-    sharedReadBlocks?: number;
-    tempReadBlocks?: number;
-    tempWrittenBlocks?: number;
+export interface QueryAnalysisFinding {
+    severity: 'low' | 'medium' | 'high';
+    category: 'query_shape' | 'index' | 'scan' | 'join' | 'sort';
+    title: string;
+    evidence: string[];
+    evidenceSources: Array<'plan' | 'metadata' | 'sql_shape'>;
+    suggestion: string;
+    confidence: 'high' | 'medium';
+    isHeuristic: boolean;
 }
 
 export interface QueryAnalysisIndexMetadata {
@@ -16,7 +19,6 @@ export interface QueryAnalysisIndexMetadata {
     isPrimary: boolean;
     isUnique: boolean;
     columns: string[];
-    normalizedColumns: string[];
     definition: string;
 }
 
@@ -42,40 +44,13 @@ export interface QueryAnalysisPlanNode {
     joinFilter?: string;
     joinType?: string;
     sortKey?: string[];
-    buffers?: QueryAnalysisPlanBuffers;
+    buffers?: {
+        sharedHitBlocks?: number;
+        sharedReadBlocks?: number;
+        tempReadBlocks?: number;
+        tempWrittenBlocks?: number;
+    };
     plans: QueryAnalysisPlanNode[];
-}
-
-export interface QueryAnalysisFinding {
-    severity: 'low' | 'medium' | 'high';
-    category: 'query_shape' | 'index' | 'scan' | 'join' | 'sort';
-    title: string;
-    evidence: string[];
-    evidenceSources: QueryAnalysisEvidenceSource[];
-    suggestion: string;
-    confidence: 'high' | 'medium';
-    isHeuristic: boolean;
-}
-
-export interface QueryAnalysisPredicate {
-    table?: string;
-    column?: string;
-    operator: string;
-    usesFunction: boolean;
-    hasLeadingWildcard: boolean;
-}
-
-export interface QueryAnalysisJoin {
-    leftTable?: string;
-    leftColumn?: string;
-    rightTable?: string;
-    rightColumn?: string;
-}
-
-export interface QueryAnalysisSort {
-    table?: string;
-    column?: string;
-    direction?: 'ASC' | 'DESC';
 }
 
 export interface QueryAnalysisTableStats {
@@ -85,6 +60,7 @@ export interface QueryAnalysisTableStats {
 }
 
 export interface QueryAnalysisResult {
+    success: true;
     mode: QueryAnalysisMode;
     normalizedSql: string;
     referencedTables: string[];
@@ -93,4 +69,9 @@ export interface QueryAnalysisResult {
     safetyNotes: string[];
     findings: QueryAnalysisFinding[];
     rawPlan: QueryAnalysisPlanNode;
+}
+
+export interface AnalyzeQueryParams {
+    query: string;
+    mode?: QueryAnalysisMode;
 }
