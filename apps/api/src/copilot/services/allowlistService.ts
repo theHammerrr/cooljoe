@@ -1,39 +1,57 @@
 class AllowlistService {
-    private allowedTables: Set<string>;
+    private readonly allowedTables: Set<string>;
+    private readonly allowlistEnabled: boolean;
 
-    constructor() {
+    constructor(env: NodeJS.ProcessEnv = process.env) {
         this.allowedTables = new Set<string>();
-        this.loadFromEnv();
+        this.allowlistEnabled = !isTruthyEnv(env.IGNORE_ALLOW_TABLE_LIST);
+        this.loadFromEnv(env.TABLE_ALLOWLIST);
     }
 
-    private loadFromEnv() {
-        // Defaults if nothing provided
-        const envList = process.env.TABLE_ALLOWLIST || 'users,orders,products,glossary,e2e_test_users';
-        envList.split(',').forEach(t => {
-            const table = t.trim().toLowerCase();
+    public isEnabled(): boolean {
+        return this.allowlistEnabled;
+    }
+
+    public isAllowed(table: string): boolean {
+        return !this.allowlistEnabled || this.allowedTables.has(table.toLowerCase());
+    }
+
+    public allowTable(table: string) {
+        if (!this.allowlistEnabled) {
+            return;
+        }
+
+        this.allowedTables.add(table.toLowerCase());
+    }
+
+    public removeTable(table: string) {
+        if (!this.allowlistEnabled) {
+            return;
+        }
+
+        this.allowedTables.delete(table.toLowerCase());
+    }
+
+    public getAllowedTables(): string[] {
+        return this.allowlistEnabled ? Array.from(this.allowedTables) : [];
+    }
+
+    private loadFromEnv(rawAllowlist: string | undefined) {
+        const envList = rawAllowlist || 'users,orders,products,glossary,e2e_test_users';
+
+        envList.split(',').forEach((entry) => {
+            const table = entry.trim().toLowerCase();
 
             if (table) {
                 this.allowedTables.add(table);
             }
         });
     }
-
-    public isAllowed(table: string): boolean {
-        return this.allowedTables.has(table.toLowerCase());
-    }
-
-    public allowTable(table: string) {
-        this.allowedTables.add(table.toLowerCase());
-    }
-
-    public removeTable(table: string) {
-        this.allowedTables.delete(table.toLowerCase());
-    }
-
-    public getAllowedTables(): string[] {
-        return Array.from(this.allowedTables);
-    }
 }
 
-// Singleton instance
+function isTruthyEnv(value: string | undefined): boolean {
+    return typeof value === 'string' && ['1', 'true', 'yes', 'on'].includes(value.trim().toLowerCase());
+}
+
 export const allowlistService = new AllowlistService();
+export { AllowlistService, isTruthyEnv };

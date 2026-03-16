@@ -18,8 +18,9 @@ const analyzeQueryRequestSchema = z.object({
 export const analyzeQuery = async (req: Request, res: Response) => {
     try {
         const { query, mode = 'explain', includeAiSummary = true } = analyzeQueryRequestSchema.parse(req.body);
-        const allowlist = allowlistService.getAllowedTables();
-        const safeSql = validateAndFormatQuery(query, allowlist);
+        const safeSql = validateAndFormatQuery(query, allowlistService.getAllowedTables(), 100, {
+            enforceAllowlist: allowlistService.isEnabled()
+        });
         const latestSchema = await retrievalService.getLatestSchema();
 
         validateRunQueryTablesAgainstSchema(safeSql, latestSchema);

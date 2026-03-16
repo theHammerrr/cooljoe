@@ -13,10 +13,11 @@ const prisma = new PrismaClient();
 export const runQuery = async (req: Request, res: Response) => {
     try {
         const { query } = req.body;
-        const allowlist = allowlistService.getAllowedTables();
 
         console.time('runQuery-AST');
-        const safeSql = validateAndFormatQuery(query, allowlist);
+        const safeSql = validateAndFormatQuery(query, allowlistService.getAllowedTables(), 100, {
+            enforceAllowlist: allowlistService.isEnabled()
+        });
         console.timeEnd('runQuery-AST');
 
         const latestSchema = await retrievalService.getLatestSchema();
@@ -27,21 +28,15 @@ export const runQuery = async (req: Request, res: Response) => {
         console.timeEnd('runQuery-DBTarget');
 
         const queryHash = crypto.createHash('sha256').update(safeSql).digest('hex');
-
         const queryLog = await prisma.queryLog.create({
-            data: {
-                queryHash,
-                sqlQuery: safeSql,
-                runtimeMs,
-                rowCount
-            }
+            data: { queryHash, sqlQuery: safeSql, runtimeMs, rowCount }
         });
 
-        res.json({
+        return res.json({
             success: true,
             queryLogId: queryLog.id,
             safeSql,
-            rows: rows.slice(0, 100), // Enforce upper GUI bound limit
+            rows: rows.slice(0, 100),
             summaryStats: { runtimeMs, rowCount: rows.length }
         });
     } catch (error: unknown) {
@@ -53,7 +48,9 @@ export const runQuery = async (req: Request, res: Response) => {
                 error: getErrorMessage(error)
             });
         }
-        console.error("RunQuery Error", error);
-        res.status(400).json({ success: false, error: getErrorMessage(error) });
+
+        console.error('RunQuery Error', error);
+
+        return res.status(400).json({ success: false, error: getErrorMessage(error) });
     }
 };
