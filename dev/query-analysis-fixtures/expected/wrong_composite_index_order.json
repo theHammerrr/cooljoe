@@ -1,0 +1,9 @@
+{
+  "mustContainTitles": [
+    "Existing index order may not support filter on public.qa_orders.customer_id"
+  ],
+  "mustNotContainTitles": [
+    "No supporting index found for filter on public.qa_orders.customer_id"
+  ],
+  "notes": "The table has qa_orders_status_customer_idx, but customer_id is not the leading column."
+}

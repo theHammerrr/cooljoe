@@ -4,6 +4,8 @@ export interface TableRef {
     fullName: string;
     schemaName: string;
     tableName: string;
+    normalizedSchemaName: string;
+    normalizedTableName: string;
     columns: string[];
     columnsSet: Set<string>;
     fkByColumn: Map<string, string>;
@@ -22,8 +24,10 @@ export function buildTableRefs(schema: unknown, requiredSchema?: string): TableR
         if (parts.length < 2) continue;
         const schemaName = parts[0];
         const tableName = parts.slice(1).join('.');
+        const normalizedSchemaName = normalizeIdentifier(schemaName);
+        const normalizedTableName = normalizeIdentifier(tableName);
 
-        if (required && schemaName !== required) continue;
+        if (required && normalizedSchemaName !== required) continue;
         const columnNames = columns.map((column) => column.column);
         const fkByColumn = new Map<string, string>();
 
@@ -36,6 +40,8 @@ export function buildTableRefs(schema: unknown, requiredSchema?: string): TableR
             fullName,
             schemaName,
             tableName,
+            normalizedSchemaName,
+            normalizedTableName,
             columns: columnNames,
             columnsSet: new Set(columnNames),
             fkByColumn
@@ -47,21 +53,27 @@ export function buildTableRefs(schema: unknown, requiredSchema?: string): TableR
 
 export function tableMentioned(question: string, tableName: string, schemaName: string): boolean {
     const lowerQuestion = normalizeIdentifier(question);
-    const singular = tableName.endsWith('s') ? tableName.slice(0, -1) : tableName;
-    const plural = tableName.endsWith('s') ? tableName : `${tableName}s`;
-    const variants = [tableName, singular, plural, `${schemaName}.${tableName}`];
+    const normalizedTableName = normalizeIdentifier(tableName);
+    const normalizedSchemaName = normalizeIdentifier(schemaName);
+    const singular = normalizedTableName.endsWith('s') ? normalizedTableName.slice(0, -1) : normalizedTableName;
+    const plural = normalizedTableName.endsWith('s') ? normalizedTableName : `${normalizedTableName}s`;
+    const variants = [normalizedTableName, singular, plural, `${normalizedSchemaName}.${normalizedTableName}`];
 
     return variants.some((variant) => new RegExp(`\\b${variant.replace('.', '\\.')}\\b`, 'i').test(lowerQuestion));
 }
 
 export function findColumnForName(columnsSet: Set<string>): string[] {
     const picks: string[] = [];
+    const columnsByNormalized = new Map(Array.from(columnsSet).map((column) => [normalizeIdentifier(column), column]));
+    const firstNameColumn = columnsByNormalized.get('first_name');
+    const lastNameColumn = columnsByNormalized.get('last_name');
+    const nameColumn = columnsByNormalized.get('name');
 
-    if (columnsSet.has('first_name')) picks.push('first_name');
+    if (typeof firstNameColumn === 'string') picks.push(firstNameColumn);
 
-    if (columnsSet.has('last_name')) picks.push('last_name');
+    if (typeof lastNameColumn === 'string') picks.push(lastNameColumn);
 
-    if (!picks.length && columnsSet.has('name')) picks.push('name');
+    if (!picks.length && typeof nameColumn === 'string') picks.push(nameColumn);
 
     return picks;
 }

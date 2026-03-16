@@ -1,39 +1,52 @@
 import type { QueryAnalysisPlanNode } from '../api/copilot/queryAnalysisTypes';
-import { getPlanNodeMetadata } from './queryAnalysisPlanMetadata';
+import { QueryAnalysisPlanMetricsGrid } from './QueryAnalysisPlanMetricsGrid';
+import { getPlanNodeNarrative } from './queryAnalysisPlanNarrative';
+import { getPlanPressure, getPlanPressureClassName, getPlanPressureLabel } from './queryAnalysisPlanPressure';
 
 interface QueryAnalysisPlanNodeSummaryProps {
     node: QueryAnalysisPlanNode;
 }
 
 export function QueryAnalysisPlanNodeSummary({ node }: QueryAnalysisPlanNodeSummaryProps) {
-    const metadata = getPlanNodeMetadata(node);
+    const narrative = getPlanNodeNarrative(node);
+    const pressure = getPlanPressure(node);
 
     return (
         <section className="rounded-xl border border-white/5 bg-[#161b22] p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Selected Plan Node</p>
-            <div className="mt-3 rounded-lg border border-cyan-500/10 bg-cyan-500/5 p-3 text-sm text-cyan-50">
-                <p className="font-semibold">{metadata.meaning}</p>
-                <p className="mt-1 text-cyan-100/80">{metadata.sqlReference}</p>
-            </div>
-            {node.sqlReferences.length > 0 && (
-                <div className="mt-3 rounded-lg border border-white/5 bg-black/20 p-3">
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-500">SQL Fragments</p>
-                    <ul className="mt-2 space-y-2 text-sm text-slate-300">
-                        {node.sqlReferences.map((reference) => <li key={reference}>{reference}</li>)}
-                    </ul>
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Selected Plan Node</p>
+                    <h3 className="mt-3 text-lg font-semibold text-white">{narrative.title}</h3>
+                    <p className="mt-2 text-sm text-slate-300">{narrative.summary}</p>
                 </div>
-            )}
-            <div className="mt-3 rounded-lg border border-white/5 bg-black/20 p-3 text-sm text-slate-300">
-                <p>Node ID: {node.nodeId}</p>
-                <p>Node: {node.nodeType}</p>
-                {node.relationName && <p>Relation: {node.schema ? `${node.schema}.` : ''}{node.relationName}</p>}
-                {typeof node.planRows === 'number' && <p>Estimated rows: {node.planRows}</p>}
-                {typeof node.actualRows === 'number' && <p>Actual rows: {node.actualRows}</p>}
-                {typeof node.actualLoops === 'number' && <p>Actual loops: {node.actualLoops}</p>}
-                {typeof node.totalCost === 'number' && <p>Total cost: {node.totalCost}</p>}
-                {typeof node.actualTotalTime === 'number' && <p>Actual total time: {node.actualTotalTime.toFixed(3)} ms</p>}
-                {typeof node.buffers?.sharedHitBlocks === 'number' && <p>Shared hit blocks: {node.buffers.sharedHitBlocks}</p>}
-                {typeof node.buffers?.sharedReadBlocks === 'number' && <p>Shared read blocks: {node.buffers.sharedReadBlocks}</p>}
+                <span className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ${getPlanPressureClassName(pressure)}`}>
+                    {getPlanPressureLabel(pressure)}
+                </span>
+            </div>
+
+            <div className="mt-4 rounded-xl border border-cyan-500/15 bg-cyan-500/5 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-cyan-200/80">SQL Mapping</p>
+                <p className="mt-2 text-sm text-cyan-50">{narrative.sqlReference}</p>
+                {node.sqlReferences.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                        {node.sqlReferences.map((reference) => (
+                            <code key={reference} className="block overflow-x-auto rounded-lg bg-black/25 px-3 py-2 text-xs text-cyan-50/90">
+                                {reference}
+                            </code>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-4 rounded-xl border border-white/6 bg-black/20 p-4">
+                <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500">What To Look At Next</p>
+                <ul className="mt-3 space-y-2 text-sm text-slate-300">
+                    {narrative.watchItems.map((item) => <li key={item}>{item}</li>)}
+                </ul>
+            </div>
+
+            <div className="mt-4">
+                <QueryAnalysisPlanMetricsGrid node={node} />
             </div>
         </section>
     );

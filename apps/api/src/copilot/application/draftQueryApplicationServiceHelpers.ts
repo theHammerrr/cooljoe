@@ -5,6 +5,8 @@ import { buildRankedDraftContext } from '../controllers/draftQuery/candidateScop
 import { buildIntentSketch, requiresClarification } from '../controllers/draftQuery/intentSketch';
 import { buildJoinGraph, buildTableCatalog, detectRequestedSchema } from '../controllers/draftQuery/schemaContext';
 import { explainTargetQuery } from '../services/executionService';
+import { KnowledgeRetrievalOptions } from '../services/knowledge/types';
+import { inferKnowledgeScope } from '../services/knowledge/knowledgeRetrieval';
 
 export async function loadDraftPlanningInputs(question: string, traceId: string) {
     console.time(`[${traceId}] schema-load`);
@@ -22,15 +24,16 @@ export async function loadDraftPlanningInputs(question: string, traceId: string)
         tableCatalog,
         intentSketch,
         needsClarification: requiresClarification(intentSketch),
+        knowledgeScope: inferKnowledgeScope(question, schema),
         rankedDraftContext: buildRankedDraftContext(schema, joinGraph, tableCatalog, intentSketch)
     };
 }
 
-export async function loadDraftRetrieval(question: string, traceId: string) {
+export async function loadDraftRetrieval(question: string, traceId: string, options: KnowledgeRetrievalOptions = {}) {
     console.time(`[${traceId}] retrieval`);
     const [relatedDocs, relatedRecipes] = await Promise.all([
-        retrievalService.findRelevantDocs(question, 2),
-        retrievalService.findRelevantRecipes(question, 2)
+        retrievalService.findRelevantDocs(question, { ...options, limit: 4 }),
+        retrievalService.findRelevantRecipes(question, { ...options, limit: 3 })
     ]);
     console.timeEnd(`[${traceId}] retrieval`);
 

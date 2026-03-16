@@ -1,0 +1,7 @@
+{
+  "mustContainTitles": [
+    "Sort on public.qa_orders.priority has no obvious index support"
+  ],
+  "mustNotContainTitles": [],
+  "notes": "The query sorts on priority, but the seeded indexes do not cover that order."
+}

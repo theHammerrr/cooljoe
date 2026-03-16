@@ -1,5 +1,6 @@
 import { DraftDiagnostic } from './diagnostics';
 import { StructuredSemanticQueryPlan } from '../../services/queryCompiler/types';
+import { normalizeIdentifier } from './common';
 
 export function collectReferencedTables(plan: StructuredSemanticQueryPlan): string[] {
     const tables = new Set<string>();
@@ -33,6 +34,12 @@ export function validateColumnScope(
     candidateColumnsByTable: Record<string, string[]>
 ): DraftDiagnostic[] {
     const diagnostics: DraftDiagnostic[] = [];
+    const normalizedColumnsByTable = new Map(
+        Object.entries(candidateColumnsByTable).map(([table, columns]) => [
+            normalizeIdentifier(table),
+            new Set(columns.map((column) => normalizeIdentifier(column)))
+        ])
+    );
     const nodes = [
         ...plan.select,
         ...(plan.groupBy || []),
@@ -41,11 +48,11 @@ export function validateColumnScope(
     ];
 
     for (const node of nodes) {
-        const allowedColumns = candidateColumnsByTable[node.table];
+        const allowedColumns = normalizedColumnsByTable.get(normalizeIdentifier(node.table));
 
-        if (!allowedColumns || allowedColumns.length === 0) continue;
+        if (!allowedColumns || allowedColumns.size === 0) continue;
 
-        if (node.column === '*' || allowedColumns.includes(node.column)) continue;
+        if (node.column === '*' || allowedColumns.has(normalizeIdentifier(node.column))) continue;
 
         diagnostics.push({
             code: 'PLAN_OUTSIDE_COLUMN_SCOPE',
@@ -64,12 +71,14 @@ export function validateJoinScope(
 ): DraftDiagnostic[] {
     if (allowedJoinGraph.length === 0 || !plan.joins?.length) return [];
 
-    const allowedEdges = new Set(allowedJoinGraph.map((edge) => `${edge.fromTable}:${edge.fromColumn}:${edge.toTable}:${edge.toColumn}`));
+    const allowedEdges = new Set(allowedJoinGraph.map((edge) =>
+        `${normalizeIdentifier(edge.fromTable)}:${normalizeIdentifier(edge.fromColumn)}:${normalizeIdentifier(edge.toTable)}:${normalizeIdentifier(edge.toColumn)}`
+    ));
     const diagnostics: DraftDiagnostic[] = [];
 
     for (const join of plan.joins) {
-        const edgeKey = `${join.fromTable}:${join.fromColumn}:${join.toTable}:${join.toColumn}`;
-        const reverseEdgeKey = `${join.toTable}:${join.toColumn}:${join.fromTable}:${join.fromColumn}`;
+        const edgeKey = `${normalizeIdentifier(join.fromTable)}:${normalizeIdentifier(join.fromColumn)}:${normalizeIdentifier(join.toTable)}:${normalizeIdentifier(join.toColumn)}`;
+        const reverseEdgeKey = `${normalizeIdentifier(join.toTable)}:${normalizeIdentifier(join.toColumn)}:${normalizeIdentifier(join.fromTable)}:${normalizeIdentifier(join.fromColumn)}`;
 
         if (allowedEdges.has(edgeKey) || allowedEdges.has(reverseEdgeKey)) continue;
 

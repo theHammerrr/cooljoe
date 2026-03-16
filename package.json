@@ -9,6 +9,7 @@
     "test": "vitest run",
     "lint": "turbo lint",
     "typecheck": "turbo typecheck",
+    "knowledge:import": "pnpm --filter @cooljoe/api run knowledge:import",
     "db:gen": "pnpm --filter @cooljoe/api exec prisma generate",
     "db:mig": "pnpm --filter @cooljoe/api exec prisma migrate dev",
     "prepare": "husky"
