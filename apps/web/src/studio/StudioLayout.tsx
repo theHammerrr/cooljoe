@@ -8,6 +8,7 @@ import { StudioWorkspaceShell } from './StudioWorkspaceShell';
 import { useStudioPaneSizing } from './useStudioPaneSizing';
 import { applyInjectedQuery } from './studioInjection';
 import { StudioTopBar } from './StudioTopBar';
+import { useAllowlist } from '../api/copilot/useAllowlist';
 
 export function StudioLayout() {
     const [activePage, setActivePage] = useState<'workspace' | 'analysis'>('workspace');
@@ -33,11 +34,13 @@ export function StudioLayout() {
 
     const { data: topology } = useGetSchemaTopology();
     const { mutate: refreshSchema, isPending: isRefreshing } = useRefreshSchema();
+    const { allowlistEnabled } = useAllowlist();
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#0d1117] overflow-hidden font-sans text-slate-300">
             <StudioTopBar
                 activePage={activePage}
+                allowlistEnabled={allowlistEnabled}
                 onResetLayout={resetLayoutWidths}
                 onOpenAllowlist={() => setShowAllowlist(true)}
                 onOpenAnalytics={() => setShowAnalytics(true)}
@@ -86,7 +89,7 @@ export function StudioLayout() {
                 </div>
             )}
 
-            {showAllowlist && <AllowlistManager onClose={() => setShowAllowlist(false)} />}
+            {allowlistEnabled && showAllowlist && <AllowlistManager onClose={() => setShowAllowlist(false)} />}
             {showAnalytics && <AnalyticsModal onClose={() => setShowAnalytics(false)} />}
         </div>
     );
