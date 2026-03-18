@@ -28,6 +28,6 @@ describe('CopilotChatForm', () => {
         render(React.createElement(CopilotChatForm, { onSend: handleSend, disabled: false }));
 
         expect(screen.getByPlaceholderText(/Ask about your data/i)).toHaveValue('Draft monthly revenue trend');
-        expect(screen.getByRole('combobox')).toHaveValue('prisma');
+        expect(screen.getByRole('button', { name: /prisma/i })).toHaveAttribute('aria-haspopup', 'listbox');
     });
 });

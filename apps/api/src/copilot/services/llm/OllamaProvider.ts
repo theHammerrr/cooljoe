@@ -1,18 +1,15 @@
-import { AIProvider } from './AIProvider';
+import { AIProvider, type QueryAnalysisSummaryInput } from './AIProvider';
 import { Ollama } from 'ollama';
 import { buildChatSystemPrompt, buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
 import { parseDraftResponse, parseExplanationResponse } from './responseParsers';
+import { buildOllamaQueryAnalysisSummary } from './ollamaQueryAnalysisSummary';
 
 export class OllamaProvider implements AIProvider {
     private ollama: Ollama;
     private model: string;
     private embeddingModel: string;
 
-    constructor(
-        host = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
-        model = process.env.AI_MODEL || 'llama3',
-        embeddingModel = process.env.AI_EMBEDDING_MODEL || 'nomic-embed-text'
-    ) {
+    constructor(host = process.env.OLLAMA_HOST || 'http://127.0.0.1:11434', model = process.env.AI_MODEL || 'llama3', embeddingModel = process.env.AI_EMBEDDING_MODEL || 'nomic-embed-text') {
         this.ollama = new Ollama({ host });
         this.model = model;
         this.embeddingModel = embeddingModel;
@@ -63,7 +60,6 @@ export class OllamaProvider implements AIProvider {
 
     async generateDraftQuery(question: string, context: Record<string, unknown>) {
         const systemPrompt = buildDraftSystemPrompt(context);
-
         console.time('generateDraftQuery');
         const response = await this.ollama.chat({
             model: this.model,
@@ -71,10 +67,7 @@ export class OllamaProvider implements AIProvider {
             options: {
                 temperature: 0.1
             },
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: question }
-            ],
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: question }],
         });
         console.timeEnd('generateDraftQuery');
 
@@ -90,12 +83,14 @@ export class OllamaProvider implements AIProvider {
             options: {
                 temperature: 0.3
             },
-            messages: [
-                { role: 'user', content: prompt }
-            ]
+            messages: [{ role: 'user', content: prompt }]
         });
 
         return parseExplanationResponse(response.message.content);
+    }
+
+    async generateQueryAnalysisSummary(input: QueryAnalysisSummaryInput) {
+        return buildOllamaQueryAnalysisSummary(this.ollama, this.model, input);
     }
 
     async generateEmbeddings(texts: string[]): Promise<number[][]> {

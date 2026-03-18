@@ -1,4 +1,4 @@
-import { Parser } from 'node-sql-parser';
+import { AST, Parser } from 'node-sql-parser';
 import { AstSelectStatement, isAstSelectStatement, toAstStatementArray } from './sqlAstTypes';
 
 const parser = new Parser();
@@ -65,48 +65,52 @@ function extractTablesFromAst(astNodes: unknown[]): string[] {
     return Array.from(tables);
 }
 
-export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimit = 100): string {
+export function parseQueryAst(sql: string): AST | AST[] {
     const normalizedSql = normalizeQuotedSchemaTableIdentifiers(sql);
 
-    // Parse AST
-    let ast;
-
     try {
-        ast = parser.astify(normalizedSql, { database: 'Postgresql' });
+        return parser.astify(normalizedSql, { database: 'Postgresql' });
     } catch (error: unknown) {
         const parseMessage = error instanceof Error ? error.message : 'Unknown Parser Error';
         throw new SQLSyntaxError(parseMessage);
     }
+}
 
+export function extractReferencedTablesFromQuery(sql: string): string[] {
+    const ast = parseQueryAst(sql);
+
+    return extractTablesFromAst(toAstStatementArray(ast));
+}
+
+export function validateAndFormatQuery(
+    sql: string,
+    allowlist: string[],
+    maxLimit = 100,
+    options: { enforceAllowlist?: boolean } = {}
+): string {
+    const ast = parseQueryAst(sql);
     const astArray = toAstStatementArray(ast);
     const tableList = extractTablesFromAst(astArray);
 
-    // 2. Allowlist Enforcement
-    for (const tableStr of tableList) {
-        // tableStr usually comes out as "db::table", "table", or "crud::db::table"
-        const parts = tableStr.split('::');
-        const tableName = parts[parts.length - 1];
+    if (options.enforceAllowlist !== false) {
+        for (const tableStr of tableList) {
+            const parts = tableStr.split('::');
+            const tableName = parts[parts.length - 1];
 
-        if (!allowlist.includes(tableName.toLowerCase())) {
-            throw new DisallowedTableError(tableName);
+            if (!allowlist.includes(tableName.toLowerCase())) {
+                throw new DisallowedTableError(tableName);
+            }
         }
     }
 
-    // 1. Block non-SELECT statements and inject limits
     for (const node of astArray) {
         if (!isAstSelectStatement(node)) {
             throw new DisallowedStatementError(typeof node.type === 'string' ? node.type : 'unknown');
         }
 
-        // 3. Limit Injection Constraints
         if (!node.limit || !node.limit.value || node.limit.value.length === 0) {
-            // Create a default limit if not present
-            node.limit = {
-                seperator: '',
-                value: [{ type: 'number', value: maxLimit }]
-            };
+            node.limit = { seperator: '', value: [{ type: 'number', value: maxLimit }] };
         } else {
-            // If limit exists, cap it without exceeding maxLimit
             const currentLimit = node.limit.value[0]?.value;
 
             if (typeof currentLimit === 'number' && currentLimit > maxLimit) {
@@ -115,6 +119,5 @@ export function validateAndFormatQuery(sql: string, allowlist: string[], maxLimi
         }
     }
 
-    // Stringify the modified AST back to safely constructed SQL
     return parser.sqlify(ast, { database: 'Postgresql' });
 }

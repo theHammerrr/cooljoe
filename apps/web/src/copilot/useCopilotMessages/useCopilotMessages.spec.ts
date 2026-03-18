@@ -56,8 +56,11 @@ function HookHarness() {
 }
 
 describe('useCopilotMessages reload recovery', () => {
+    let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
     beforeEach(() => {
         vi.clearAllMocks();
+        consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
         window.localStorage.clear();
         mocks.subscribeToDraftStatus.mockReturnValue(() => undefined);
         mocks.cancelDraftJob.mockResolvedValue({
@@ -74,6 +77,7 @@ describe('useCopilotMessages reload recovery', () => {
     });
 
     afterEach(() => {
+        consoleErrorSpy.mockRestore();
         cleanup();
         window.localStorage.clear();
     });

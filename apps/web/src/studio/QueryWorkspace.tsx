@@ -1,10 +1,13 @@
-import { useRef, useState } from 'react';
-import { useRunQuery } from '../api/copilot/useRunQuery';
+import { useEffect, useRef, useState } from 'react';
+import type { QueryAnalysisMode } from '../api/copilot/useAnalyzeQuery';
 import { useAllowTable } from '../api/copilot/useAllowTable';
 import { QueryWorkspaceContent } from './QueryWorkspaceContent';
-import { QueryWorkspaceHeader } from './QueryWorkspaceHeader';
 import { QueryWorkspaceFooter } from './QueryWorkspaceFooter';
+import { QueryWorkspaceHeader } from './QueryWorkspaceHeader';
+import { loadAiSummaryPreference, saveAiSummaryPreference } from './queryAnalysisPreferences';
+import { useQueryWorkspaceQueries } from './useQueryWorkspaceQueries';
 import { useWorkspaceSplitSizing } from './useWorkspaceSplitSizing';
+
 interface QueryWorkspaceProps {
     injectedSql: string;
     injectedPrisma?: string;
@@ -15,49 +18,27 @@ interface QueryWorkspaceProps {
 
 export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabChange, onResetInjected }: QueryWorkspaceProps) {
     const splitContainerRef = useRef<HTMLDivElement | null>(null);
+    const [analysisMode, setAnalysisMode] = useState<QueryAnalysisMode>('explain');
+    const [includeAiSummary, setIncludeAiSummary] = useState(() => loadAiSummaryPreference());
     const [sql, setSql] = useState<string>('SELECT * FROM public.users LIMIT 10;');
     const [prismaJs, setPrismaJs] = useState<string>('prisma.users.findMany({\n  take: 10\n})');
-    const [tableResults, setTableResults] = useState<Record<string, unknown>[] | null>(null);
-    const [approvalTable, setApprovalTable] = useState<string | null>(null);
-    const [runError, setRunError] = useState<string | null>(null);
-    const { mutate: runQuery, isPending: isRunning } = useRunQuery();
     const { mutate: allowTable, isPending: isAllowing } = useAllowTable();
     const { editorHeight, startResize, resetEditorHeight, adjustEditorHeight } = useWorkspaceSplitSizing();
     const effectiveSql = injectedSql || sql;
     const effectivePrisma = injectedPrisma || prismaJs;
-    const handleRun = () => {
-        const queryToRun = activeTab === 'sql' ? effectiveSql : effectivePrisma;
+    const queryState = useQueryWorkspaceQueries(activeTab, effectiveSql, effectivePrisma);
 
-        if (!queryToRun.trim()) return;
-        setApprovalTable(null);
-        setRunError(null);
-        runQuery({ query: queryToRun, mode: activeTab }, {
-            onSuccess: (d) => {
-                if (d.success) {
-                    setTableResults(d.rows);
-                    setRunError(null);
-
-                    return;
-                }
-
-                if (d.requiresApproval) {
-                    setApprovalTable(d.table);
-
-                    return;
-                }
-                setRunError(d.error || 'Query execution failed.');
-            },
-            onError: (err) => setRunError(err.message || 'Query execution failed.')
-        });
-    };
+    useEffect(() => {
+        saveAiSummaryPreference(includeAiSummary);
+    }, [includeAiSummary]);
 
     const handleApprove = () => {
-        if (!approvalTable) return;
+        if (!queryState.approvalTable) return;
 
-        allowTable({ table: approvalTable }, {
+        allowTable({ table: queryState.approvalTable }, {
             onSuccess: () => {
-                setApprovalTable(null);
-                handleRun();
+                queryState.setApprovalTable(null);
+                queryState.handleRun();
             }
         });
     };
@@ -74,28 +55,52 @@ export function QueryWorkspace({ injectedSql, injectedPrisma, activeTab, onTabCh
         setPrismaJs(code);
     };
 
+    const handleAnalyze = () => {
+        if (
+            analysisMode === 'explain_analyze'
+            && !window.confirm('EXPLAIN ANALYZE executes the query. Continue with execution-backed analysis?')
+        ) {
+            return;
+        }
+
+        queryState.handleAnalyze(analysisMode, includeAiSummary);
+    };
+
     return (
-        <div className="flex flex-col h-full bg-[#0d1117] flex-1 min-w-0 text-slate-300 font-sans selection:bg-blue-500/30">
-            <QueryWorkspaceHeader 
-                activeTab={activeTab} onTabChange={onTabChange} onRun={handleRun} 
-                isRunning={isRunning} canRun={!!(activeTab === 'sql' ? effectiveSql.trim() : effectivePrisma.trim())} 
+        <div className="flex flex-col h-full flex-1 min-w-0 bg-[#0d1117] font-sans text-slate-300 selection:bg-blue-500/30">
+            <QueryWorkspaceHeader
+                activeTab={activeTab}
+                analysisMode={analysisMode}
+                includeAiSummary={includeAiSummary}
+                onTabChange={onTabChange}
+                onAnalysisModeChange={setAnalysisMode}
+                onIncludeAiSummaryChange={setIncludeAiSummary}
+                onRun={queryState.handleRun}
+                onAnalyze={handleAnalyze}
+                isRunning={queryState.isRunning}
+                isAnalyzing={queryState.isAnalyzing}
+                canRun={!!(activeTab === 'sql' ? effectiveSql.trim() : effectivePrisma.trim())}
+                canAnalyze={activeTab === 'sql' && !!effectiveSql.trim()}
             />
             <div ref={splitContainerRef} className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <QueryWorkspaceContent
                     activeTab={activeTab}
-                    approvalTable={approvalTable}
+                    analysisError={queryState.analysisError}
+                    analysisResult={queryState.analysisResult}
+                    approvalTable={queryState.approvalTable}
                     editorHeight={editorHeight}
                     effectivePrisma={effectivePrisma}
                     effectiveSql={effectiveSql}
                     isAllowing={isAllowing}
                     onAdjustEditorHeight={adjustEditorHeight}
                     onApprove={handleApprove}
-                    onClearResults={() => setTableResults(null)}
+                    onClearAnalysis={() => { queryState.setAnalysisResult(null); queryState.setAnalysisError(null); }}
+                    onClearResults={() => queryState.setTableResults(null)}
                     onEditorValueChange={handleEditorValueChange}
                     onResizeEditor={(event) => startResize(event, splitContainerRef.current)}
                     onResetEditorHeight={resetEditorHeight}
-                    runError={runError}
-                    tableResults={tableResults}
+                    runError={queryState.runError}
+                    tableResults={queryState.tableResults}
                 />
             </div>
             <QueryWorkspaceFooter />

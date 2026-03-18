@@ -1,32 +1,28 @@
-import { AIProvider } from './AIProvider';
+import { AIProvider, type QueryAnalysisSummaryInput } from './AIProvider';
 import OpenAI, { ClientOptions } from 'openai';
 import { buildChatSystemPrompt, buildDraftSystemPrompt, buildExplanationPrompt } from './promptBuilders';
 import { parseDraftResponse, parseExplanationResponse } from './responseParsers';
+import { buildOpenAiQueryAnalysisSummary } from './openAiQueryAnalysisSummary';
 
 export class OpenAIProvider implements AIProvider {
     private openai: OpenAI;
     private model: string;
     private embeddingModel: string;
 
-    constructor(
-        apiKey?: string,
-        model = process.env.AI_MODEL || 'gpt-4o',
-        embeddingModel = process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small'
-    ) {
+    constructor(apiKey?: string, model = process.env.AI_MODEL || 'gpt-4o', embeddingModel = process.env.AI_EMBEDDING_MODEL || 'text-embedding-3-small') {
         const key = apiKey || process.env.OPENAI_API_KEY;
 
         if (!key) throw new Error("OPENAI_API_KEY is missing");
 
         const openAiOptions: ClientOptions = {
             apiKey: key,
-        }
+        };
 
         const baseURL = process.env.OPENAI_BASE_URL;
 
         if (baseURL) {
             openAiOptions.baseURL = baseURL;
         }
-
 
         this.openai = new OpenAI(openAiOptions);
         this.model = model;
@@ -55,10 +51,7 @@ export class OpenAIProvider implements AIProvider {
         const systemPrompt = buildChatSystemPrompt(context);
         const stream = await this.openai.chat.completions.create({
             model: this.model,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: prompt }
-            ],
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }],
             stream: true
         });
         let fullResponse = '';
@@ -76,15 +69,11 @@ export class OpenAIProvider implements AIProvider {
 
     async generateDraftQuery(question: string, context: Record<string, unknown>) {
         const systemPrompt = buildDraftSystemPrompt(context);
-
         console.time('generateDraftQuery-OpenAI');
         const response = await this.openai.chat.completions.create({
             model: this.model,
             response_format: { type: 'json_object' },
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: question }
-            ],
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: question }],
             temperature: 0.1
         });
         console.timeEnd('generateDraftQuery-OpenAI');
@@ -99,14 +88,16 @@ export class OpenAIProvider implements AIProvider {
         const response = await this.openai.chat.completions.create({
             model: this.model,
             response_format: { type: 'json_object' },
-            messages: [
-                { role: 'user', content: systemPrompt }
-            ],
+            messages: [{ role: 'user', content: systemPrompt }],
             temperature: 0.3
         });
         console.timeEnd(`chat-OpenAI-${question.substring(0, 10)}`);
 
         return parseExplanationResponse(response.choices[0].message.content);
+    }
+
+    async generateQueryAnalysisSummary(input: QueryAnalysisSummaryInput) {
+        return buildOpenAiQueryAnalysisSummary(this.openai, this.model, input);
     }
 
     async generateEmbeddings(texts: string[]): Promise<number[][]> {
