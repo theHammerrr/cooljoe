@@ -115,4 +115,21 @@ describe('Draft Schema Validator', () => {
         expect(result.valid).toBe(false);
         expect(result.diagnostics.some((diagnostic) => diagnostic.code === 'AMBIGUOUS_COLUMN')).toBe(true);
     });
+
+    it('accepts mixed-case quoted identifiers when they match the schema case-insensitively', () => {
+        const mixedCaseSchema = {
+            'public.PEOPLE': [
+                { column: 'ID', isPrimary: true },
+                { column: 'firstName' }
+            ]
+        };
+        const sql = `
+            SELECT "public"."PEOPLE"."ID", "public"."PEOPLE"."firstName"
+            FROM "public"."PEOPLE"
+        `;
+
+        const result = validateDraftSqlAgainstSchemaWithRequirements(sql, mixedCaseSchema, 'public');
+
+        expect(result.valid).toBe(true);
+    });
 });

@@ -1,0 +1,7 @@
+{
+  "mustContainTitles": [
+    "No supporting index found for filter on public.qa_events.customer_id"
+  ],
+  "mustNotContainTitles": [],
+  "notes": "Large events table with no customer_id index should trigger filter-index advice."
+}

@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>SQL Query Analysis Workspace</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                        "editor-bg": "#0d1117",
+                        "syntax-keyword": "#ff7b72",
+                        "syntax-string": "#a5d6ff",
+                        "syntax-function": "#d2a8ff",
+                        "syntax-comment": "#8b949e",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"],
+                        "mono": ["Fira Code", "monospace"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .syntax-editor {
+            font-family: 'Fira Code', 'Courier New', monospace;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 overflow-hidden">
+<div class="flex h-screen flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex h-14 items-center justify-between border-b border-slate-200 dark:border-slate-800 bg-background-light dark:bg-background-dark px-6">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2 text-primary">
+<span class="material-symbols-outlined text-3xl">database</span>
+<h2 class="text-lg font-bold tracking-tight">SQL Query Analyzer</h2>
+</div>
+<div class="h-6 w-px bg-slate-200 dark:bg-slate-800"></div>
+<div class="flex items-center gap-4 text-sm font-medium">
+<span class="text-slate-500 dark:text-slate-400">Project:</span>
+<span class="text-slate-900 dark:text-slate-100">Production_DB_East</span>
+<span class="material-symbols-outlined text-sm">expand_more</span>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-lg">search</span>
+<input class="h-9 w-64 rounded-lg border-none bg-slate-100 dark:bg-slate-800 pl-10 text-sm focus:ring-2 focus:ring-primary/50" placeholder="Search tables or procedures..." type="text"/>
+</div>
+<button class="flex h-9 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-bold text-white transition-opacity hover:opacity-90">
+<span class="material-symbols-outlined text-lg">play_arrow</span>
+                    Execute Plan
+                </button>
+<button class="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<div class="h-8 w-8 rounded-full bg-slate-300 dark:bg-slate-700 bg-cover bg-center" data-alt="User profile avatar circle" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAbS7TNqrDyP-FgloVYheU5CM4D_lQk9yjhKbRxf6J1DSAYEiNKGUFtsldolksti8B_W5mxaieEXAWZGpnWo4lMZnATxDRObnoFg2iC7N0D9hWIj5zqmcJrcd8VLWkB4PB4XKJYSo_WsqMyzJTmRD23UaUHJqfznSjklCMxoiEh8tycH5OroDDMqVk1l2wH9CxBJCnRIfAMdrbbifIkgRiZ9axoi8v6yDaY-qtQM9BjJRb5RqD9xmCI6gLI7RFn_tYJ44MrkQGt0iY')"></div>
+</div>
+</header>
+<!-- Main Workspace Area -->
+<main class="flex flex-1 overflow-hidden">
+<!-- Sidebar: Query Findings -->
+<aside class="w-72 flex flex-col border-r border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-background-dark/50">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">Query Findings</h3>
+<span class="flex h-5 w-5 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">4</span>
+</div>
+<div class="flex-1 overflow-y-auto p-2 space-y-2">
+<!-- Finding Item 1 -->
+<div class="group cursor-pointer rounded-lg bg-red-500/10 p-3 border border-red-500/20">
+<div class="flex items-start justify-between mb-1">
+<span class="flex items-center gap-2 text-xs font-bold text-red-500 uppercase">
+<span class="material-symbols-outlined text-sm">error</span> Critical
+                            </span>
+<span class="text-[10px] text-slate-400">#01</span>
+</div>
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Missing Index</p>
+<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Table: [Orders], Column: [OrderDate]</p>
+</div>
+<!-- Finding Item 2 -->
+<div class="group cursor-pointer rounded-lg bg-amber-500/10 p-3 border border-amber-500/20">
+<div class="flex items-start justify-between mb-1">
+<span class="flex items-center gap-2 text-xs font-bold text-amber-500 uppercase">
+<span class="material-symbols-outlined text-sm">warning</span> Warning
+                            </span>
+</div>
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Implicit Conversion</p>
+<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">CONVERT_IMPLICIT from VARCHAR to INT in JOIN predicate.</p>
+</div>
+<!-- Finding Item 3 -->
+<div class="group cursor-pointer rounded-lg bg-primary/10 p-3 border border-primary/20">
+<div class="flex items-start justify-between mb-1">
+<span class="flex items-center gap-2 text-xs font-bold text-primary uppercase">
+<span class="material-symbols-outlined text-sm">info</span> Info
+                            </span>
+</div>
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">High CPU Usage</p>
+<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Parallelism overhead exceeds processing gain for this query size.</p>
+</div>
+<!-- Finding Item 4 -->
+<div class="group cursor-pointer rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 p-3 transition-colors">
+<div class="flex items-start justify-between mb-1">
+<span class="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase">
+<span class="material-symbols-outlined text-sm">auto_fix_high</span> Suggestion
+                            </span>
+</div>
+<p class="text-sm font-semibold text-slate-900 dark:text-slate-100">Statistics Outdated</p>
+<p class="mt-1 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">Table [Users] stats are 14 days old.</p>
+</div>
+</div>
+</aside>
+<!-- Center: SQL Editor -->
+<section class="flex flex-1 flex-col bg-[#0d1117] relative">
+<div class="flex h-10 items-center gap-4 border-b border-slate-800 bg-[#161b22] px-4">
+<div class="flex h-full items-center border-b-2 border-primary px-2 text-xs font-medium text-slate-100">
+                        optimize_user_orders.sql
+                    </div>
+<div class="flex h-full items-center px-2 text-xs font-medium text-slate-500 hover:text-slate-300 cursor-pointer">
+                        Table Statistics
+                    </div>
+</div>
+<div class="flex-1 overflow-auto syntax-editor p-6 text-sm leading-relaxed">
+<div class="flex gap-4">
+<div class="flex flex-col text-slate-600 text-right select-none pr-4 border-r border-slate-800 min-w-[2rem]">
+<span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span><span>10</span><span>11</span><span>12</span><span>13</span><span>14</span>
+</div>
+<div class="whitespace-pre text-slate-300">
+<span class="text-syntax-keyword">SELECT</span> 
+    u.DisplayName, 
+    o.OrderID, 
+    o.OrderDate, 
+    SUM(oi.Quantity * oi.UnitPrice) <span class="text-syntax-keyword">AS</span> TotalAmount
+<span class="text-syntax-keyword">FROM</span> Users u
+<span class="text-syntax-keyword">INNER JOIN</span> Orders o <span class="text-syntax-keyword">ON</span> u.UserID = o.UserID
+<span class="text-syntax-keyword">INNER JOIN</span> OrderItems oi <span class="text-syntax-keyword">ON</span> o.OrderID = oi.OrderID
+<span class="text-syntax-keyword">WHERE</span> o.OrderDate &gt;= <span class="text-syntax-string">'2023-01-01'</span>
+<span class="text-syntax-keyword">AND</span> u.AccountStatus = <span class="text-syntax-string">'Active'</span>
+<span class="text-syntax-keyword">GROUP BY</span> 
+    u.DisplayName, 
+    o.OrderID, 
+    o.OrderDate
+<span class="text-syntax-keyword">ORDER BY</span> o.OrderDate <span class="text-syntax-keyword">DESC</span>;
+                        </div>
+</div>
+</div>
+<!-- Editor Bottom Toolbar -->
+<div class="flex h-10 items-center justify-between border-t border-slate-800 bg-[#161b22] px-4 text-[11px] text-slate-400">
+<div class="flex gap-4">
+<span>Row: 14, Col: 28</span>
+<span>UTF-8</span>
+<span>SQL Server</span>
+</div>
+<div class="flex gap-4">
+<span class="flex items-center gap-1"><span class="h-2 w-2 rounded-full bg-green-500"></span> Connected</span>
+<span>0.42s Execution</span>
+</div>
+</div>
+</section>
+<!-- Right Sidebar: Execution Plan Inspector -->
+<aside class="w-80 flex flex-col border-l border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-background-dark/50">
+<div class="p-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+<h3 class="text-sm font-bold uppercase tracking-wider text-slate-500">Execution Plan</h3>
+<span class="material-symbols-outlined text-slate-400 cursor-pointer">fullscreen</span>
+</div>
+<!-- Visual Execution Plan (Graphical Tree representation) -->
+<div class="flex-1 overflow-auto p-4 flex flex-col items-center">
+<!-- SELECT Node -->
+<div class="w-full flex flex-col items-center mb-8">
+<div class="rounded-lg border-2 border-primary/40 bg-white dark:bg-slate-800 p-2 text-center w-32 shadow-sm">
+<span class="material-symbols-outlined text-primary mb-1">output</span>
+<p class="text-[10px] font-bold">SELECT</p>
+<p class="text-[10px] text-slate-500">Cost: 0%</p>
+</div>
+<div class="h-8 w-px bg-slate-300 dark:bg-slate-700"></div>
+</div>
+<!-- Nested Loops Node -->
+<div class="w-full flex flex-col items-center mb-8">
+<div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-center w-32 relative group">
+<span class="material-symbols-outlined text-slate-400 mb-1">join_inner</span>
+<p class="text-[10px] font-bold">Nested Loops</p>
+<p class="text-[10px] text-slate-500">Cost: 12%</p>
+<!-- Tooltip Example -->
+<div class="absolute invisible group-hover:visible top-full mt-2 w-48 bg-slate-900 text-white text-[10px] p-2 rounded shadow-xl z-50 text-left">
+<p class="font-bold border-b border-slate-700 mb-1 pb-1">Inner Join</p>
+<p>Logical Op: Nested Loops</p>
+<p>Estimated CPU: 0.00042</p>
+<p>Actual Rows: 1,402</p>
+</div>
+</div>
+<div class="flex w-full justify-center">
+<div class="h-8 w-px bg-slate-300 dark:bg-slate-700 -mr-16"></div>
+<div class="h-8 w-px bg-slate-300 dark:bg-slate-700 ml-16"></div>
+</div>
+</div>
+<!-- Sub-tree Nodes -->
+<div class="flex w-full justify-around">
+<!-- Left Node (Index Scan) -->
+<div class="flex flex-col items-center">
+<div class="rounded-lg border border-red-500/30 bg-red-500/5 p-2 text-center w-28">
+<span class="material-symbols-outlined text-red-500 mb-1">search</span>
+<p class="text-[10px] font-bold">Index Scan</p>
+<p class="text-[10px] text-red-500 font-bold">Cost: 64%</p>
+<p class="text-[9px] text-slate-500 truncate mt-1">[Orders].[PK_Orders]</p>
+</div>
+</div>
+<!-- Right Node (Hash Match) -->
+<div class="flex flex-col items-center">
+<div class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 p-2 text-center w-28">
+<span class="material-symbols-outlined text-slate-400 mb-1">hub</span>
+<p class="text-[10px] font-bold">Hash Match</p>
+<p class="text-[10px] text-slate-500">Cost: 24%</p>
+<p class="text-[9px] text-slate-500 truncate mt-1">(Aggregate)</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Inspector Details -->
+<div class="h-48 border-t border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900/50 p-4 overflow-y-auto">
+<h4 class="text-[11px] font-bold text-slate-500 uppercase mb-3">Node Details</h4>
+<div class="space-y-2">
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Operation</span>
+<span class="font-medium">Clustered Index Scan</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Object</span>
+<span class="font-medium text-primary">[Production].[Orders]</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Estimated I/O Cost</span>
+<span class="font-medium">0.842</span>
+</div>
+<div class="flex justify-between text-xs">
+<span class="text-slate-500">Actual Number of Rows</span>
+<span class="font-medium">145,920</span>
+</div>
+<div class="mt-4">
+<div class="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase mb-1">
+<span class="material-symbols-outlined text-sm">lightbulb</span> Optimization Tip
+                            </div>
+<p class="text-[11px] text-slate-600 dark:text-slate-400">
+                                This scan can be converted to a Seek by adding a non-clustered index on (OrderDate).
+                            </p>
+</div>
+</div>
+</div>
+</aside>
+</main>
+</div>
+</body></html>

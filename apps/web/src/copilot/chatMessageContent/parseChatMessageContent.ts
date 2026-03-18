@@ -1,10 +1,16 @@
+import { parseSchemaBlock, type ParsedSchemaBlock } from './parseSchemaBlock';
+
 export type ChatMessageSegment =
     | { type: 'text'; content: string }
-    | { type: 'query'; content: string; language: 'sql' | 'prisma' | 'code' };
+    | { type: 'query'; content: string; language: 'sql' | 'prisma' | 'code' }
+    | { type: 'schema'; content: string; value: ParsedSchemaBlock };
 
-const FENCED_BLOCK_PATTERN = /```(sql|prisma|ts|typescript|js|javascript)?\s*([\s\S]*?)```/gi;
+const FENCED_BLOCK_PATTERN = /```(schema|sql|prisma|ts|typescript|js|javascript)?\s*([\s\S]*?)```/gi;
 const INLINE_SQL_PATTERN = /(^|\n)((?:with|select)\b[\s\S]*)/i;
 const INLINE_PRISMA_PATTERN = /(^|\n)((?:const\s+\w+\s*=\s*)?\w*\.?findMany\([\s\S]*|prisma\.\w+[\s\S]*)/i;
+
+type FencedBlockLanguage = 'schema' | 'sql' | 'prisma' | 'code';
+type QueryLanguage = Extract<FencedBlockLanguage, 'sql' | 'prisma' | 'code'>;
 
 export function parseChatMessageContent(text: string): ChatMessageSegment[] {
     if (!text.trim()) {
@@ -48,7 +54,7 @@ function parseFencedBlocks(text: string): ChatMessageSegment[] {
         }
 
         if (code) {
-            segments.push({ type: 'query', content: code, language: languageHint });
+            segments.push(buildFencedSegment(languageHint, code));
         }
 
         lastIndex = matchIndex + fullMatch.length;
@@ -73,15 +79,39 @@ function splitInlineQuery(text: string, queryStartIndex: number, language: 'sql'
 }
 
 function compactSegments(segments: ChatMessageSegment[]) {
-    return segments.filter((segment) => segment.content.trim().length > 0 || segment.type === 'text');
+    return segments.filter((segment) => segment.content.trim().length > 0);
 }
 
-function normalizeLanguage(value: string | undefined): 'sql' | 'prisma' | 'code' {
+function buildFencedSegment(language: FencedBlockLanguage, content: string): ChatMessageSegment {
+    if (language === 'schema') {
+        const parsedSchema = parseSchemaBlock(content);
+
+        if (parsedSchema) {
+            return { type: 'schema', content, value: parsedSchema };
+        }
+    }
+
+    return { type: 'query', content, language: toQueryLanguage(language) };
+}
+
+function toQueryLanguage(language: FencedBlockLanguage): QueryLanguage {
+    if (language === 'sql' || language === 'prisma') {
+        return language;
+    }
+
+    return 'code';
+}
+
+function normalizeLanguage(value: string | undefined): FencedBlockLanguage {
     if (!value) {
         return 'code';
     }
 
     const normalized = value.toLowerCase();
+
+    if (normalized === 'schema') {
+        return 'schema';
+    }
 
     if (normalized === 'sql') {
         return 'sql';

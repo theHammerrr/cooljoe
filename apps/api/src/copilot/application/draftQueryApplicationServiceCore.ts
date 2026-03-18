@@ -59,7 +59,10 @@ export async function runDraftJobCore(input: DraftJobCoreInput): Promise<DraftQu
     }
 
     await input.executionControl.throwIfStopped('retrieval');
-    const retrieval = await loadDraftRetrieval(question, input.traceId);
+    const retrieval = await loadDraftRetrieval(question, input.traceId, {
+        ...planningInputs.knowledgeScope,
+        tables: planningInputs.rankedDraftContext?.focusTables || planningInputs.knowledgeScope.tables
+    });
     updateDraftStage(input.requestId, 'building_context');
     await input.executionControl.throwIfStopped('context build');
     const result = await executeDraftPlanning({

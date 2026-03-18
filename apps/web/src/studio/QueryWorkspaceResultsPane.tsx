@@ -1,17 +1,12 @@
 import { ResultsTable } from '../copilot/ResultsTable';
-import type { QueryAnalysisResult } from '../api/copilot/useAnalyzeQuery';
-import { QueryAnalysisResultsPane } from './QueryAnalysisResultsPane';
 import { QueryWorkspaceApproval } from './QueryWorkspaceApproval';
 import { QueryWorkspaceEmptyState } from './QueryWorkspaceEmptyState';
 
 interface QueryWorkspaceResultsPaneProps {
     activeTab: 'sql' | 'prisma';
-    analysisError: string | null;
-    analysisResult: QueryAnalysisResult | null;
     approvalTable: string | null;
     isAllowing: boolean;
     onApprove: () => void;
-    onClearAnalysis: () => void;
     runError: string | null;
     tableResults: Record<string, unknown>[] | null;
     onClearResults: () => void;
@@ -19,12 +14,9 @@ interface QueryWorkspaceResultsPaneProps {
 
 export function QueryWorkspaceResultsPane({
     activeTab,
-    analysisError,
-    analysisResult,
     approvalTable,
     isAllowing,
     onApprove,
-    onClearAnalysis,
     runError,
     tableResults,
     onClearResults
@@ -52,14 +44,10 @@ export function QueryWorkspaceResultsPane({
         );
     }
 
-    if (analysisResult) {
-        return <QueryAnalysisResultsPane analysis={analysisResult} analysisError={analysisError} onClear={onClearAnalysis} />;
-    }
-
-    if (runError || analysisError) {
+    if (runError) {
         return (
             <div className="my-auto rounded-lg border border-red-500/40 bg-red-950/30 px-4 py-3 text-sm text-red-200">
-                {runError || analysisError}
+                {runError}
             </div>
         );
     }

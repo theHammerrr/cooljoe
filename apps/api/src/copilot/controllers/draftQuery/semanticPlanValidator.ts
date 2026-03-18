@@ -1,6 +1,7 @@
 import { DraftDiagnostic } from './diagnostics';
 import { IntentSketch } from './intentSketch';
 import { SemanticQueryPlan } from '../../services/queryCompiler/types';
+import { normalizeIdentifier } from './common';
 import {
     collectReferencedTables,
     hasTimeFilter,
@@ -25,16 +26,23 @@ export function validateSemanticPlanAgainstIntent(
     const diagnostics: DraftDiagnostic[] = [];
     const referencedTables = collectReferencedTables(plan);
     const candidateTables = scope.candidateTables || [];
-    const candidateTableSet = new Set(candidateTables);
+    const candidateTableSet = new Set(candidateTables.map((table) => normalizeIdentifier(table)));
 
-    if (candidateTables.length > 0 && referencedTables.some((table) => !candidateTableSet.has(table))) {
+    if (candidateTables.length > 0 && referencedTables.some((table) => !candidateTableSet.has(normalizeIdentifier(table)))) {
         diagnostics.push({
             code: 'PLAN_OUTSIDE_CANDIDATE_SCOPE',
-            message: `Plan referenced tables outside the narrowed candidate scope: ${referencedTables.filter((table) => !candidateTableSet.has(table)).join(', ')}`
+            message: `Plan referenced tables outside the narrowed candidate scope: ${referencedTables.filter((table) => !candidateTableSet.has(normalizeIdentifier(table))).join(', ')}`
         });
     }
 
-    if (intentSketch.entities.length > 0 && !referencedTables.some((table) => intentSketch.entities.includes(table) || intentSketch.entities.some((entity) => table.endsWith(entity.split('.').slice(-1)[0])))) {
+    const normalizedIntentEntities = intentSketch.entities.map((entity) => normalizeIdentifier(entity));
+
+    if (normalizedIntentEntities.length > 0 && !referencedTables.some((table) => {
+        const normalizedTable = normalizeIdentifier(table);
+        const bareTable = normalizedTable.split('.').slice(-1)[0];
+
+        return normalizedIntentEntities.includes(normalizedTable) || normalizedIntentEntities.some((entity) => bareTable === entity.split('.').slice(-1)[0]);
+    })) {
         diagnostics.push({
             code: 'PLAN_MISSING_ENTITY',
             message: 'Plan does not reference the main entity implied by the user request.'
@@ -88,3 +96,4 @@ export function validateSemanticPlanAgainstIntent(
 
     return diagnostics;
 }
+

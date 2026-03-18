@@ -1,0 +1,8 @@
+{
+  "mustContainTitles": [
+    "Join key public.qa_orders.customer_id is not the leading column of an index",
+    "Join key public.qa_line_items.order_id lacks obvious index support"
+  ],
+  "mustNotContainTitles": [],
+  "notes": "The orders side has only a misaligned composite index, and line_items intentionally has no order_id index."
+}

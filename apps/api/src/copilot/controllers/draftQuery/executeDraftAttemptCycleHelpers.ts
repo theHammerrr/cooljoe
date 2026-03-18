@@ -1,6 +1,7 @@
 import { compileSemanticPlan } from '../../services/queryCompiler/compiler';
 import { compileLogicalToSemanticPlan } from '../../services/queryCompiler/logicalPlanCompiler';
 import { validateLogicalPlanSemantics } from '../../services/queryCompiler/logicalPlanValidation';
+import { canonicalizeSemanticPlanIdentifiers } from '../../services/queryCompiler/identifierCanonicalization';
 import { LogicalQueryPlan } from '../../services/queryCompiler/logicalPlanTypes';
 import { SemanticQueryPlan } from '../../services/queryCompiler/types';
 import { normalizeQuotedSchemaTableIdentifiers } from '../../safety/queryValidator';
@@ -41,7 +42,8 @@ export async function compileAndValidateDraft(
         return { draft: null, sql: '', validation: diagnosticsToValidation(logicalPlanDiagnostics) };
     }
 
-    const draft = compileLogicalToSemanticPlan(input.logicalDraft);
+    const compiledDraft = compileLogicalToSemanticPlan(input.logicalDraft);
+    const draft = canonicalizeSemanticPlanIdentifiers(compiledDraft, input.schema);
     const semanticPlanDiagnostics = input.semanticIntent
         ? validateSemanticPlanAgainstIntent(draft, input.semanticIntent, {
             candidateTables: input.candidateTables || [],
@@ -73,10 +75,10 @@ export async function compileAndValidateDraft(
     const dryRunDiagnostics = await input.validateDryRunSql(sql);
 
     if (dryRunDiagnostics.length === 0) {
-        return { draft, sql, validation: schemaValidation };
+        return { draft: optimizedDraft, sql, validation: schemaValidation };
     }
 
-        return {
+    return {
         draft: optimizedDraft,
         sql,
         validation: {

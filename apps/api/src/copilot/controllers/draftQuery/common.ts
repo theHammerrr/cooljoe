@@ -42,12 +42,12 @@ export function tryGetTopology(schema: unknown): TopologyMap | null {
                 continue;
             }
             columns.push({
-                column: normalizeIdentifier(columnName),
+                column: columnName,
                 isPrimary: typeof isPrimary === 'boolean' ? isPrimary : undefined,
-                foreignKeyTarget: typeof foreignKeyTarget === 'string' ? normalizeIdentifier(foreignKeyTarget) : null
+                foreignKeyTarget: typeof foreignKeyTarget === 'string' ? foreignKeyTarget : null
             });
         }
-        out[normalizeIdentifier(tableKey)] = columns;
+        out[tableKey] = columns;
     }
 
     return out;
@@ -57,7 +57,7 @@ export function getPrimaryKeyColumn(columns: TopologyColumn[]): string {
     const primary = columns.find((column) => column.isPrimary);
 
     if (primary) return primary.column;
-    const idColumn = columns.find((column) => column.column === 'id');
+    const idColumn = columns.find((column) => normalizeIdentifier(column.column) === 'id');
 
     return idColumn ? idColumn.column : columns[0]?.column || 'id';
 }

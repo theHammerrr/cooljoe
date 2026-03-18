@@ -5,17 +5,21 @@ export function detectRequestedSchema(question: string, schema: unknown): string
     if (typeof schema !== 'object' || schema === null) {
         return undefined;
     }
-    const schemaNames = new Set<string>();
+    const schemaNames = new Map<string, string>();
 
     for (const key of Object.keys(schema)) {
         const firstDot = key.indexOf('.');
 
-        if (firstDot > 0) schemaNames.add(key.slice(0, firstDot).toLowerCase());
+        if (firstDot > 0) {
+            const schemaName = key.slice(0, firstDot);
+
+            schemaNames.set(normalizeIdentifier(schemaName), schemaName);
+        }
     }
     const lowerQuestion = question.toLowerCase();
 
-    for (const schemaName of schemaNames) {
-        if (new RegExp(`\\b${schemaName}\\b`, 'i').test(lowerQuestion)) {
+    for (const [normalizedSchemaName, schemaName] of schemaNames) {
+        if (new RegExp(`\\b${normalizedSchemaName}\\b`, 'i').test(lowerQuestion)) {
             return schemaName;
         }
     }
@@ -27,18 +31,21 @@ export function buildJoinGraph(schema: unknown, requiredSchema?: string): JoinGr
     const topology = tryGetTopology(schema);
 
     if (!topology) return [];
-    const normalizedRequiredSchema = requiredSchema?.toLowerCase();
+    const normalizedRequiredSchema = requiredSchema ? normalizeIdentifier(requiredSchema) : undefined;
     const edges: JoinGraphEdge[] = [];
 
     for (const [tableKey, columns] of Object.entries(topology)) {
-        if (normalizedRequiredSchema && !tableKey.startsWith(`${normalizedRequiredSchema}.`)) continue;
+        const [schemaName] = tableKey.split('.');
+
+        if (normalizedRequiredSchema && normalizeIdentifier(schemaName || '') !== normalizedRequiredSchema) continue;
 
         for (const column of columns) {
             const foreignKeyTarget = column.foreignKeyTarget;
 
             if (typeof foreignKeyTarget !== 'string' || !foreignKeyTarget) continue;
+            const [targetSchemaName] = foreignKeyTarget.split('.');
 
-            if (normalizedRequiredSchema && !foreignKeyTarget.startsWith(`${normalizedRequiredSchema}.`)) continue;
+            if (normalizedRequiredSchema && normalizeIdentifier(targetSchemaName || '') !== normalizedRequiredSchema) continue;
             const targetColumns = topology[foreignKeyTarget];
 
             if (!targetColumns || !targetColumns.length) continue;
@@ -61,7 +68,12 @@ export function buildTableCatalog(schema: unknown, requiredSchema?: string): Tab
     const required = requiredSchema ? normalizeIdentifier(requiredSchema) : '';
 
     return Object.entries(topology)
-        .filter(([table]) => !required || table.startsWith(`${required}.`))
+        .filter(([table]) => {
+            if (!required) return true;
+            const [schemaName] = table.split('.');
+
+            return normalizeIdentifier(schemaName || '') === required;
+        })
         .map(([table, columns]) => ({
             table,
             columns: columns.map((column) => column.column),

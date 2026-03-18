@@ -16,10 +16,8 @@ export function QueryAnalysisSidebar({ analysis, selectedNodeId, onSelectNode }:
 
     return (
         <div className="space-y-4">
-            <div className="grid gap-4 xl:grid-cols-[minmax(240px,0.95fr)_minmax(0,1.15fr)]">
-                <QueryAnalysisPlanNodeSummary node={selectedNode} />
-                <QueryAnalysisPlanTree root={analysis.rawPlan} selectedNodeId={selectedNode.nodeId} onSelectNode={onSelectNode} />
-            </div>
+            <QueryAnalysisPlanNodeSummary node={selectedNode} />
+            <QueryAnalysisPlanTree root={analysis.rawPlan} selectedNodeId={selectedNode.nodeId} onSelectNode={onSelectNode} />
             <QueryAnalysisIndexesSection indexes={analysis.indexes} />
             <QueryAnalysisTableStatsSection tableStats={analysis.tableStats} />
         </div>

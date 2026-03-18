@@ -1,0 +1,7 @@
+{
+  "mustContainTitles": [
+    "Function-wrapped predicate on public.qa_customers.email"
+  ],
+  "mustNotContainTitles": [],
+  "notes": "The plain email index exists, but LOWER(email) should still be flagged."
+}

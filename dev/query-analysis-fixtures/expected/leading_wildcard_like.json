@@ -1,0 +1,7 @@
+{
+  "mustContainTitles": [
+    "Leading wildcard LIKE on public.qa_customers.email"
+  ],
+  "mustNotContainTitles": [],
+  "notes": "LIKE with a leading percent should be treated as non-btree-friendly."
+}

@@ -1,5 +1,5 @@
 import { DraftQueryResult } from './models';
-import { getPrimaryKeyColumn, quoteIdentifier, quoteTableReference } from './common';
+import { getPrimaryKeyColumn, normalizeIdentifier, quoteIdentifier, quoteTableReference } from './common';
 import { buildTableRefs, findColumnForName, tableMentioned, TableRef } from './deterministicTables';
 import { scoreBossResolution, scoreSingleTableResolution } from './deterministicConfidence';
 import { selectDeterministicColumns } from './deterministicProjection';
@@ -34,12 +34,18 @@ function buildSingleTableDraft(question: string, table: TableRef): DraftQueryRes
 
 function buildBossDraft(question: string, tables: TableRef[]): DraftQueryResult | null {
     if (!/\bboss(es)?\b/i.test(question)) return null;
-    const employee = tables.find((table) => table.tableName === 'employee');
-    const person = employee ? tables.find((table) => table.tableName === 'person' && table.schemaName === employee.schemaName) : undefined;
+    const employee = tables.find((table) => table.normalizedTableName === 'employee');
+    const person = employee
+        ? tables.find((table) => table.normalizedTableName === 'person' && table.normalizedSchemaName === employee.normalizedSchemaName)
+        : undefined;
 
     if (!employee || !person) return null;
 
-    if (employee.fkByColumn.get('boss_id') !== employee.fullName || employee.fkByColumn.get('person_id') !== person.fullName) return null;
+    const employeeForeignKeys = new Map(
+        Array.from(employee.fkByColumn.entries()).map(([column, target]) => [normalizeIdentifier(column), target])
+    );
+
+    if (employeeForeignKeys.get('boss_id') !== employee.fullName || employeeForeignKeys.get('person_id') !== person.fullName) return null;
     const personNameColumns = findColumnForName(person.columnsSet);
 
     if (!personNameColumns.length) return null;
@@ -83,7 +89,7 @@ export function resolveDeterministicDraft(question: string, schema: unknown, req
     const bossDraft = buildBossDraft(question, scope);
 
     if (bossDraft) {
-        const score = scoreBossResolution(question, mentionedTables.some((table) => table.tableName === 'employee'), /\bboss(es)?\b/i.test(question));
+        const score = scoreBossResolution(question, mentionedTables.some((table) => table.normalizedTableName === 'employee'), /\bboss(es)?\b/i.test(question));
 
         return { draft: bossDraft, confidence: score.confidence, reasons: score.reasons };
     }

@@ -71,11 +71,18 @@ Typical local URLs:
 
 There is a repo-level [docker-compose.yml](/F:/GitRepos/cooljoe/docker-compose.yml) for a local all-in-one setup.
 
+There is also a dedicated [docker-compose.query-analysis.yml](/F:/GitRepos/cooljoe/docker-compose.query-analysis.yml) for query-analysis validation against a seeded large-data target database with intentionally problematic access patterns.
+
 Before using it, set:
 
 - `PROJECT_DATABASE_URL`
 - `OPENAI_API_KEY` if using OpenAI
 - or ensure Ollama is reachable from the container
+
+Choose the compose file based on what you are trying to do:
+
+- `docker-compose.yml`: regular local app setup
+- `docker-compose.query-analysis.yml`: seeded query-analysis lab for validating recommendations
 
 ## Limitations
 

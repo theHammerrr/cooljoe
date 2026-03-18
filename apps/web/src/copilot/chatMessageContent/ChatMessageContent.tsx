@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { parseChatMessageContent } from './parseChatMessageContent';
 import { renderHighlightedQuery } from './renderHighlightedQuery';
+import { SchemaBlockCard } from './SchemaBlockCard';
 
 interface ChatMessageContentProps {
     text: string;
@@ -27,6 +28,10 @@ export function ChatMessageContent({ text }: ChatMessageContentProps) {
                             {segment.content}
                         </p>
                     );
+                }
+
+                if (segment.type === 'schema') {
+                    return <SchemaBlockCard key={`schema-${index}`} value={segment.value} />;
                 }
 
                 return (

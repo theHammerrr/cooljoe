@@ -1,12 +1,22 @@
+import { StudioPageSwitch } from './StudioPageSwitch';
 import { StudioHeaderActions } from './StudioHeaderActions';
 
 interface StudioTopBarProps {
+    activePage: 'workspace' | 'analysis';
     allowlistEnabled: boolean;
     onOpenAllowlist: () => void;
     onOpenAnalytics: () => void;
+    onPageChange: (page: 'workspace' | 'analysis') => void;
     onResetLayout: () => void;
 }
 
+export function StudioTopBar({
+    activePage,
+    onOpenAllowlist,
+    onOpenAnalytics,
+    onPageChange,
+    onResetLayout
+}: StudioTopBarProps) {
 export function StudioTopBar({ allowlistEnabled, onOpenAllowlist, onOpenAnalytics, onResetLayout }: StudioTopBarProps) {
     return (
         <header className="bg-[#161b22] border-b border-white/5 px-4 py-2.5 flex justify-between items-center shrink-0 z-10">
@@ -26,6 +36,7 @@ export function StudioTopBar({ allowlistEnabled, onOpenAllowlist, onOpenAnalytic
                     </span>
                 </div>
                 <span className="text-[10px] font-bold text-slate-600 bg-white/5 border border-white/5 px-2 py-0.5 rounded-full uppercase tracking-widest">v1.0</span>
+                <StudioPageSwitch activePage={activePage} onPageChange={onPageChange} />
             </div>
             <StudioHeaderActions
                 allowlistEnabled={allowlistEnabled}
