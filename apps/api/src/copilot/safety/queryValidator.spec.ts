@@ -47,4 +47,12 @@ describe('Query Validator', () => {
         const sql = 'SELECT * FROM secrets';
         expect(() => validateAndFormatQuery(sql, allowlist)).toThrowError(DisallowedTableError);
     });
+
+    it('can skip allowlist enforcement when requested', () => {
+        const sql = 'SELECT * FROM secrets';
+        const safeSql = validateAndFormatQuery(sql, allowlist, 25, { enforceAllowlist: false });
+
+        expect(safeSql.toLowerCase()).toContain('from "secrets"');
+        expect(safeSql).toContain('LIMIT 25');
+    });
 });
