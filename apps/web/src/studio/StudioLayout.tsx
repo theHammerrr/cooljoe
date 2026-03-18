@@ -10,6 +10,7 @@ import { ResizeHandle } from './ResizeHandle';
 import { useStudioPaneSizing } from './useStudioPaneSizing';
 import { applyInjectedQuery } from './studioInjection';
 import { StudioTopBar } from './StudioTopBar';
+import { useAllowlist } from '../api/copilot/useAllowlist';
 
 export function StudioLayout() {
     const [injectedSql, setInjectedSql] = useState<string>('');
@@ -32,18 +33,18 @@ export function StudioLayout() {
 
     const { data: topology } = useGetSchemaTopology();
     const { mutate: refreshSchema, isPending: isRefreshing } = useRefreshSchema();
+    const { allowlistEnabled } = useAllowlist();
 
     return (
         <div className="flex flex-col h-screen w-full bg-[#0d1117] overflow-hidden font-sans text-slate-300">
             <StudioTopBar
+                allowlistEnabled={allowlistEnabled}
                 onResetLayout={resetLayoutWidths}
                 onOpenAllowlist={() => setShowAllowlist(true)}
                 onOpenAnalytics={() => setShowAnalytics(true)}
             />
 
-            {/* Three-Pane Workspace */}
             <div ref={containerRef} className="flex flex-1 min-h-0 relative">
-                {/* Left Sidebar: Schema Explorer */}
                 <div className="shrink-0 flex flex-col border-r border-white/5 z-10 bg-[#0d1117] relative" style={{ width: leftWidth }}>
                     <SchemaExplorer
                         topology={topology ?? null}
@@ -58,7 +59,6 @@ export function StudioLayout() {
                     onAdjust={adjustLeftWidth}
                 />
 
-                {/* Center Workspace */}
                 <div className="flex-1 flex flex-col min-w-0 relative z-0">
                     <QueryWorkspace
                         activeTab={activeWorkspaceTab}
@@ -75,7 +75,6 @@ export function StudioLayout() {
                     onAdjust={adjustRightWidth}
                 />
 
-                {/* Right Sidebar: Copilot Chat */}
                 <div className="shrink-0 border-l border-white/5 flex flex-col z-10 overflow-hidden" style={{ width: rightWidth }}>
                     <CopilotChat
                         isEmbedded={true}
@@ -90,7 +89,7 @@ export function StudioLayout() {
                 </div>
             </div>
 
-            {showAllowlist && <AllowlistManager onClose={() => setShowAllowlist(false)} />}
+            {allowlistEnabled && showAllowlist && <AllowlistManager onClose={() => setShowAllowlist(false)} />}
             {showAnalytics && <AnalyticsModal onClose={() => setShowAnalytics(false)} />}
         </div>
     );
