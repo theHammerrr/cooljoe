@@ -16,6 +16,26 @@ describe('resolveSuggestedDraftFromAnswer', () => {
         expect(suggestedDraft?.constraints).toContain('select id, name from public.user');
     });
 
+    it('prefers SQL when both SQL and Prisma queries appear in the same answer', () => {
+        const suggestedDraft = resolveSuggestedDraftFromAnswer(
+            'show active users',
+            [
+                'SQL:',
+                '```sql',
+                'select id, "firstName" from public.users',
+                '```',
+                'Prisma:',
+                '```ts',
+                'prisma.users.findMany({ select: { id: true, firstName: true } })',
+                '```'
+            ].join('\n')
+        );
+
+        expect(suggestedDraft?.mode).toBe('sql');
+        expect(suggestedDraft?.constraints).toContain('Candidate SQL');
+        expect(suggestedDraft?.constraints).not.toContain('prisma.users.findMany');
+    });
+
     it('returns null when the answer is not query-shaped', () => {
         expect(resolveSuggestedDraftFromAnswer('show active users', 'I need one more detail before I can help.')).toBeNull();
     });
