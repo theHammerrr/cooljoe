@@ -50,9 +50,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-      args:
-        # Route standard Vite API endpoints to the Backend service proxy on :3001
-        VITE_API_URL: "http://localhost:3001"
+    environment:
+      # Runtime-injected into dist/runtime-config.js when the container starts.
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:3001}
     ports:
       - "3000:80"
     depends_on:

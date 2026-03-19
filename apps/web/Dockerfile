@@ -14,6 +14,8 @@ RUN pnpm install --frozen-lockfile
 # Copy the frontend project code without overwriting workspace install links
 COPY apps/web/src apps/web/src
 COPY apps/web/public apps/web/public
+COPY apps/web/scripts apps/web/scripts
+COPY apps/web/docker apps/web/docker
 COPY apps/web/index.html apps/web/index.html
 COPY apps/web/postcss.config.js apps/web/postcss.config.js
 COPY apps/web/tailwind.config.js apps/web/tailwind.config.js
@@ -24,8 +26,7 @@ COPY apps/web/vite.config.ts apps/web/vite.config.ts
 
 WORKDIR /app/apps/web
 
-# Build frontend against dynamic endpoints
-# Pass VITE_API_URL via Compose/Build arguments
+# Optional build-time fallback for local static builds.
 ARG VITE_API_URL
 ENV VITE_API_URL=${VITE_API_URL}
 
@@ -33,6 +34,9 @@ RUN pnpm run build
 
 # Serve Stage
 FROM nginx:alpine AS runner
+COPY apps/web/docker/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
+
 # Copy pre-compiled dist outputs to the default NGINX HTML domain
 COPY --from=builder /app/apps/web/dist /usr/share/nginx/html
 
