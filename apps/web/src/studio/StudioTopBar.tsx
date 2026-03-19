@@ -12,12 +12,12 @@ interface StudioTopBarProps {
 
 export function StudioTopBar({
     activePage,
+    allowlistEnabled,
     onOpenAllowlist,
     onOpenAnalytics,
     onPageChange,
     onResetLayout
 }: StudioTopBarProps) {
-export function StudioTopBar({ allowlistEnabled, onOpenAllowlist, onOpenAnalytics, onResetLayout }: StudioTopBarProps) {
     return (
         <header className="bg-[#161b22] border-b border-white/5 px-4 py-2.5 flex justify-between items-center shrink-0 z-10">
             <div className="flex items-center gap-3">

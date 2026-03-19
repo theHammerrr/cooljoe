@@ -67,6 +67,25 @@ Typical local URLs:
 - web: `http://localhost:5173` or the Vite port shown in the terminal
 - api: `http://localhost:3001`
 
+## Frontend runtime envs
+
+The frontend now supports runtime API URL injection for static builds. It checks `window.__APP_CONFIG__.apiUrl` first and falls back to `VITE_API_URL` only when no runtime config was injected.
+
+For a manual build:
+
+```bash
+pnpm --filter @cooljoe/web build
+VITE_API_URL=http://localhost:3001 pnpm --filter @cooljoe/web inject-runtime-env
+```
+
+Or in one step:
+
+```bash
+VITE_API_URL=http://localhost:3001 pnpm --filter @cooljoe/web build:runtime
+```
+
+This rewrites `apps/web/dist/runtime-config.js`, so the same built assets can be pointed at a different API without rebuilding the bundle.
+
 ## Docker
 
 There is a repo-level [docker-compose.yml](/F:/GitRepos/cooljoe/docker-compose.yml) for a local all-in-one setup.
@@ -83,6 +102,8 @@ Choose the compose file based on what you are trying to do:
 
 - `docker-compose.yml`: regular local app setup
 - `docker-compose.query-analysis.yml`: seeded query-analysis lab for validating recommendations
+
+The `web` container now injects `VITE_API_URL` into `runtime-config.js` when the container starts, so you can change the API endpoint through container environment variables without rebuilding the image.
 
 ## Limitations
 

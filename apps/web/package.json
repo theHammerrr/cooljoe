@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:runtime": "pnpm run build && pnpm run inject-runtime-env",
+    "inject-runtime-env": "node ./scripts/inject-runtime-env.mjs ./dist",
     "lint": "eslint .",
     "typecheck": "tsc -b",
     "preview": "vite preview"
