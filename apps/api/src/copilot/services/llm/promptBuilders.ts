@@ -16,8 +16,25 @@ Rules:
 12. If Context includes "preferredJoinPaths", prefer those join paths and avoid inventing alternate joins.
 13. Prefer the smallest correct table set and explicit projection. Avoid broad plans when a narrower one satisfies the request.
 14. Use "derived" only for operations that cannot be expressed directly as plain dimensions/measures/order. If "preferredMode" is "prisma", avoid unsupported derived operations.
-15. Output strict JSON matching this structure:
-{"intent":"Short summary","assumptions":["List assumptions"],"requires_raw_sql":false,"raw_sql_fallback":"Write raw SELECT SQL only when requires_raw_sql is true","dimensions":[{"table":"public.users","tableRef":"users_1","role":"user","column":"status","alias":"status"}],"measures":[{"table":"public.orders","tableRef":"orders_1","role":"order","column":"amount","agg":"sum","alias":"total_amount"}],"relationships":[{"fromTable":"public.users","fromColumn":"id","toTable":"public.orders","toColumn":"user_id","type":"left"}],"filters":[{"table":"public.users","tableRef":"users_1","role":"user","column":"status","op":"=","value":"active"}],"order":[{"table":"public.orders","tableRef":"orders_1","role":"order","column":"amount","agg":"sum","dir":"desc"}],"time":{"grain":"month","dimension":{"table":"public.orders","column":"created_at","alias":"month_created_at"},"range":"last 12 months"},"ranking":{"limit":10,"direction":"desc","target":{"table":"public.orders","column":"amount"},"agg":"sum"},"derived":[{"kind":"time_bucket","source":{"table":"public.orders","column":"created_at"},"grain":"month","alias":"month_created_at"}],"limit":100,"riskFlags":["List any performance risks"]}
+15. Do not add a relationship or join unless another table is actually required for selected fields, filters, grouping, ordering, ranking, or an explicitly requested traversal.
+16. If one table can satisfy the request, keep "relationships" empty.
+17. Output strict JSON matching this structure:
+{
+  "intent": "Short summary of what the query does",
+  "assumptions": ["List of assumptions"],
+  "requires_raw_sql": false,
+  "raw_sql_fallback": "Write raw SELECT SQL only when requires_raw_sql is true",
+  "dimensions": [{"table": "public.users", "tableRef": "users_1", "role": "user", "column": "status", "alias": "status"}],
+  "measures": [{"table": "public.orders", "tableRef": "orders_1", "role": "order", "column": "amount", "agg": "sum", "alias": "total_amount"}],
+  "relationships": [{"fromTable": "public.users", "fromColumn": "id", "toTable": "public.orders", "toColumn": "user_id", "type": "left"}],
+  "filters": [{"table": "public.users", "tableRef": "users_1", "role": "user", "column": "status", "op": "=", "value": "active"}],
+  "order": [{"table": "public.orders", "tableRef": "orders_1", "role": "order", "column": "amount", "agg": "sum", "dir": "desc"}],
+  "time": {"grain": "month", "dimension": {"table": "public.orders", "column": "created_at", "alias": "month_created_at"}, "range": "last 12 months"},
+  "ranking": {"limit": 10, "direction": "desc", "target": {"table": "public.orders", "column": "amount"}, "agg": "sum"},
+  "derived": [{"kind": "time_bucket", "source": {"table": "public.orders", "column": "created_at"}, "grain": "month", "alias": "month_created_at"}],
+  "limit": 100,
+  "riskFlags": ["List any performance risks"]
+}
 Context Details:
 ${JSON.stringify(context, null, 2)}
 `;
@@ -36,9 +53,12 @@ Rules:
 Only use this format when presenting schema structure. Keep it valid JSON and use exact identifier casing from context.
 3. If the user asks for data retrieval, aggregation, filtering, or joins, suggest using SQL/Prisma Draft mode with a concrete next prompt.
 4. Prefer retrieved business rules, sentinel meanings, and possible values when they exist in context. Do not override them with generic assumptions.
-5. If information is missing or ambiguous, ask one short clarifying question tied to schema/table/column names.
-6. Keep responses concise and actionable.
-7. Prefer recent turns first. Use conversationSummary only as background, not as the primary instruction source.
+5. If you provide a query example in chat, return only one query language. Prefer SQL unless the user explicitly asks for Prisma.
+6. Do not include both SQL and Prisma in the same answer.
+7. Avoid joins unless another table is required by the requested columns, filters, grouping, ordering, or relationship traversal.
+8. If information is missing or ambiguous, ask one short clarifying question tied to schema/table/column names.
+9. Keep responses concise and actionable.
+10. Prefer recent turns first. Use conversationSummary only as background, not as the primary instruction source.
 Context:
 ${JSON.stringify(context || {}, null, 2)}
 `;

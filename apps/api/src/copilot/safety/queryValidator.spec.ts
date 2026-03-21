@@ -28,6 +28,24 @@ describe('Query Validator', () => {
         expect(safeSql).toContain('LIMIT 50');
     });
 
+    it('preserves quoted case-sensitive column identifiers', () => {
+        const sql = 'SELECT "users"."firstName" FROM "public"."users"';
+        const safeSql = validateAndFormatQuery(sql, allowlist, 50);
+
+        expect(safeSql).toContain('"users"."firstName"');
+        expect(safeSql).toContain('FROM "public"."users"');
+        expect(safeSql).toContain('LIMIT 50');
+    });
+
+    it('supports fully qualified quoted column identifiers', () => {
+        const sql = 'SELECT "public"."users"."firstName" FROM "public"."users" LIMIT 10';
+        const safeSql = validateAndFormatQuery(sql, allowlist, 50);
+
+        expect(safeSql).toContain('"public"."users"."firstName"');
+        expect(safeSql).toContain('FROM "public"."users"');
+        expect(safeSql).toContain('LIMIT 10');
+    });
+
     it('does not force alias rewriting in FROM/JOIN tables', () => {
         const sql = 'SELECT users.id FROM users JOIN orders ON users.id = orders.user_id';
         const safeSql = validateAndFormatQuery(sql, allowlist, 50);

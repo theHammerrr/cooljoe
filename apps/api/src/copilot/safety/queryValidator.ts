@@ -1,7 +1,15 @@
 import { AST, Parser } from 'node-sql-parser';
-import { AstSelectStatement, isAstSelectStatement, toAstStatementArray } from './sqlAstTypes';
+import { isAstSelectStatement, toAstStatementArray } from './sqlAstTypes';
+import {
+    normalizeQuotedSchemaTableIdentifiers,
+    prepareSqlForParser,
+    restoreIdentifierToken,
+    restoreSqlIdentifiers
+} from './queryValidatorSql';
 
 const parser = new Parser();
+
+export { normalizeQuotedSchemaTableIdentifiers };
 
 export class QueryValidationError extends Error {
     constructor(message: string) {
@@ -31,34 +39,19 @@ export class SQLSyntaxError extends QueryValidationError {
     }
 }
 
-export function normalizeQuotedSchemaTableIdentifiers(sql: string): string {
-    return sql.replace(/"([^"]+)\.([^"]+)"/g, '"$1"."$2"');
-}
-
-function collectTablesFromSelectNode(selectNode: AstSelectStatement, out: Set<string>): void {
-    const fromClause = selectNode.from;
-
-    if (!Array.isArray(fromClause)) {
-        return;
-    }
-
-    for (const fromEntry of fromClause) {
-        if (!fromEntry || typeof fromEntry !== 'object') {
-            continue;
-        }
-
-        if (typeof fromEntry.table === 'string' && fromEntry.table) {
-            out.add(fromEntry.table.toLowerCase());
-        }
-    }
-}
-
-function extractTablesFromAst(astNodes: unknown[]): string[] {
+function extractTablesFromAst(astNodes: unknown[], placeholderMap: Map<string, string>): string[] {
     const tables = new Set<string>();
 
     for (const node of astNodes) {
-        if (isAstSelectStatement(node)) {
-            collectTablesFromSelectNode(node, tables);
+        if (!isAstSelectStatement(node) || !Array.isArray(node.from)) continue;
+
+        for (const fromEntry of node.from) {
+            if (!fromEntry || typeof fromEntry !== 'object' || typeof fromEntry.table !== 'string' || !fromEntry.table) continue;
+
+            const tableName = restoreIdentifierToken(fromEntry.table, placeholderMap);
+            const schemaName = typeof fromEntry.db === 'string' ? restoreIdentifierToken(fromEntry.db, placeholderMap) : '';
+
+            tables.add(schemaName ? `${schemaName}.${tableName}`.toLowerCase() : tableName.toLowerCase());
         }
     }
 
@@ -66,10 +59,8 @@ function extractTablesFromAst(astNodes: unknown[]): string[] {
 }
 
 export function parseQueryAst(sql: string): AST | AST[] {
-    const normalizedSql = normalizeQuotedSchemaTableIdentifiers(sql);
-
     try {
-        return parser.astify(normalizedSql, { database: 'Postgresql' });
+        return parser.astify(prepareSqlForParser(sql).parserSql, { database: 'Postgresql' });
     } catch (error: unknown) {
         const parseMessage = error instanceof Error ? error.message : 'Unknown Parser Error';
         throw new SQLSyntaxError(parseMessage);
@@ -77,9 +68,9 @@ export function parseQueryAst(sql: string): AST | AST[] {
 }
 
 export function extractReferencedTablesFromQuery(sql: string): string[] {
-    const ast = parseQueryAst(sql);
+    const prepared = prepareSqlForParser(sql);
 
-    return extractTablesFromAst(toAstStatementArray(ast));
+    return extractTablesFromAst(toAstStatementArray(parseQueryAst(sql)), prepared.placeholderMap);
 }
 
 export function validateAndFormatQuery(
@@ -88,36 +79,35 @@ export function validateAndFormatQuery(
     maxLimit = 100,
     options: { enforceAllowlist?: boolean } = {}
 ): string {
+    const prepared = prepareSqlForParser(sql);
     const ast = parseQueryAst(sql);
     const astArray = toAstStatementArray(ast);
-    const tableList = extractTablesFromAst(astArray);
 
-    if (options.enforceAllowlist !== false) {
-        for (const tableStr of tableList) {
-            const parts = tableStr.split('::');
-            const tableName = parts[parts.length - 1];
+    for (const tableStr of extractTablesFromAst(astArray, prepared.placeholderMap)) {
+        const tableName = tableStr.split('.').at(-1) || tableStr;
 
-            if (!allowlist.includes(tableName.toLowerCase())) {
-                throw new DisallowedTableError(tableName);
-            }
+        if (options.enforceAllowlist !== false && !allowlist.includes(tableName.toLowerCase())) {
+            throw new DisallowedTableError(tableName);
         }
     }
 
     for (const node of astArray) {
-        if (!isAstSelectStatement(node)) {
-            throw new DisallowedStatementError(typeof node.type === 'string' ? node.type : 'unknown');
+        if (!isAstSelectStatement(node)) throw new DisallowedStatementError(typeof node.type === 'string' ? node.type : 'unknown');
+
+        const currentLimit = node.limit?.value?.[0]?.value;
+        const numericLimit = typeof currentLimit === 'number' ? currentLimit : Number(currentLimit);
+
+        if (!node.limit?.value?.length) {
+            node.limit = { seperator: '', value: [{ type: 'number', value: maxLimit }] };
+            continue;
         }
 
-        if (!node.limit || !node.limit.value || node.limit.value.length === 0) {
-            node.limit = { seperator: '', value: [{ type: 'number', value: maxLimit }] };
-        } else {
-            const currentLimit = node.limit.value[0]?.value;
+        if (Number.isFinite(numericLimit) && numericLimit > maxLimit) {
+            const firstLimit = node.limit.value[0];
 
-            if (typeof currentLimit === 'number' && currentLimit > maxLimit) {
-                node.limit.value[0].value = maxLimit;
-            }
+            if (firstLimit) firstLimit.value = maxLimit;
         }
     }
 
-    return parser.sqlify(ast, { database: 'Postgresql' });
+    return restoreSqlIdentifiers(parser.sqlify(ast, { database: 'Postgresql' }), prepared.placeholderMap);
 }

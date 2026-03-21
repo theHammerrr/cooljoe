@@ -12,49 +12,49 @@ export function buildAssistantAnswerActions(
     question: string,
     messageText: string
 ): AssistantAnswerActions {
-    const extractedPrisma = extractCodeBlock(messageText, PRISMA_BLOCK_PATTERN);
+    const extractedSql = extractCodeBlock(messageText, SQL_BLOCK_PATTERN) || extractInlineSql(messageText);
 
-    if (extractedPrisma) {
+    if (extractedSql) {
         return {
             suggestedDraft: {
                 question,
-                mode: 'prisma',
-                reason: 'Regenerate and validate a Prisma draft using this answer as a high-confidence hint.',
-                constraints: buildAnswerHintConstraints('prisma', messageText, extractedPrisma),
+                mode: 'sql',
+                reason: 'Regenerate and validate a SQL draft using this answer as a high-confidence hint.',
+                constraints: buildAnswerHintConstraints('sql', extractedSql),
                 ctaLabel: 'Create Draft',
-                tooltip: 'Regenerate and validate a draft using this answer as a hint. Slower, but safer when the answer is partial or uncertain.'
+                tooltip: 'Regenerate and validate a draft using this answer as a hint. Slower, but safer when the answer already looks close.'
             },
             suggestedInjection: {
-                mode: 'prisma',
-                prisma: extractedPrisma,
-                reason: 'Assistant answer already includes a usable Prisma-shaped query.',
+                mode: 'sql',
+                sql: extractedSql,
+                reason: 'Assistant answer already includes a usable SQL query.',
                 ctaLabel: 'Inject Query',
-                tooltip: 'Use the query from this answer directly. Fastest option. Best when the answer already looks correct.'
+                tooltip: 'Use the SQL query from this answer directly.'
             }
         };
     }
 
-    const extractedSql = extractCodeBlock(messageText, SQL_BLOCK_PATTERN) || extractInlineSql(messageText);
+    const extractedPrisma = extractCodeBlock(messageText, PRISMA_BLOCK_PATTERN);
 
-    if (!extractedSql) {
+    if (!extractedPrisma) {
         return {};
     }
 
     return {
         suggestedDraft: {
             question,
-            mode: 'sql',
-            reason: 'Regenerate and validate a SQL draft using this answer as a high-confidence hint.',
-            constraints: buildAnswerHintConstraints('sql', messageText, extractedSql),
+            mode: 'prisma',
+            reason: 'Regenerate and validate a Prisma draft using this answer as a high-confidence hint.',
+            constraints: buildAnswerHintConstraints('prisma', extractedPrisma),
             ctaLabel: 'Create Draft',
-            tooltip: 'Regenerate and validate a draft using this answer as a hint. Slower, but safer when the answer is partial or uncertain.'
+            tooltip: 'Regenerate and validate a draft using this answer as a hint. Slower, but safer when the answer already looks close.'
         },
         suggestedInjection: {
-            mode: 'sql',
-            sql: extractedSql,
-            reason: 'Assistant answer already includes a usable SQL query.',
+            mode: 'prisma',
+            prisma: extractedPrisma,
+            reason: 'Assistant answer already includes a usable Prisma-shaped query.',
             ctaLabel: 'Inject Query',
-            tooltip: 'Use the query from this answer directly. Fastest option. Best when the answer already looks correct.'
+            tooltip: 'Use the Prisma query from this answer directly.'
         }
     };
 }
@@ -72,14 +72,23 @@ function extractInlineSql(value: string): string | undefined {
 
     if (sqlStartIndex < 0) return undefined;
 
-    return lines.slice(sqlStartIndex).join('\n');
+    const sqlLines: string[] = [];
+
+    for (const line of lines.slice(sqlStartIndex)) {
+        if (/^```/.test(line)) break;
+
+        if (/^prisma\./i.test(line)) break;
+
+        sqlLines.push(line);
+    }
+
+    return sqlLines.join('\n').trim() || undefined;
 }
 
-function buildAnswerHintConstraints(mode: 'sql' | 'prisma', fullAnswer: string, candidate: string) {
+function buildAnswerHintConstraints(mode: 'sql' | 'prisma', candidate: string) {
     return [
         `The assistant already proposed a ${mode.toUpperCase()}-shaped answer in chat.`,
         'Use it as a high-confidence starting point if it matches schema and intent.',
-        `Candidate ${mode.toUpperCase()}:\n${candidate}`,
-        `Assistant answer:\n${fullAnswer}`
+        `Candidate ${mode.toUpperCase()}:\n${candidate}`
     ].join('\n\n');
 }

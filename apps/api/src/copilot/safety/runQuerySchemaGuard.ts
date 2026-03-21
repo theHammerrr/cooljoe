@@ -1,33 +1,23 @@
-import { Parser } from 'node-sql-parser';
-import { QueryValidationError } from './queryValidator';
-import { AstSelectStatement, isAstSelectStatement, toAstStatementArray } from './sqlAstTypes';
-
-const parser = new Parser();
+import { QueryValidationError, extractReferencedTablesFromQuery } from './queryValidator';
 
 interface SqlTableRef {
     db?: string;
     table: string;
 }
 
-function collectFromTables(selectNode: AstSelectStatement, out: SqlTableRef[]): void {
-    if (!Array.isArray(selectNode.from)) return;
-
-    for (const entry of selectNode.from) {
-        if (!entry || typeof entry !== 'object' || typeof entry.table !== 'string') continue;
-        out.push({ db: typeof entry.db === 'string' ? entry.db : undefined, table: entry.table });
-    }
-}
-
 function extractTableRefs(sql: string): SqlTableRef[] {
-    const ast = parser.astify(sql, { database: 'Postgresql' });
-    const astNodes = toAstStatementArray(ast);
-    const refs: SqlTableRef[] = [];
+    return extractReferencedTablesFromQuery(sql).map((tableRef) => {
+        const parts = tableRef.split('.');
 
-    for (const node of astNodes) {
-        if (isAstSelectStatement(node)) collectFromTables(node, refs);
-    }
+        if (parts.length > 1) {
+            return {
+                db: parts[0],
+                table: parts.slice(1).join('.')
+            };
+        }
 
-    return refs;
+        return { table: tableRef };
+    });
 }
 
 function getSchemaTableKeys(schema: unknown): Set<string> {
